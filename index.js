@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, PermissionsBitField } = require('discord.js');
+const { Client, GatewayIntentBits, PermissionsBitField, Events } = require('discord.js');
 require('dotenv').config();
 const token = process.env.DISCORD_TOKEN;
 
@@ -13,14 +13,14 @@ const client = new Client({
 
 const prefix = "?";
 
-client.once('clientReady', () => {
-    console.log(`Bot conectado como ${client.user.tag}`);
+// Aquí usamos Events.ClientReady en lugar de 'clientReady'
+client.once(Events.ClientReady, (c) => {
+    console.log(`Bot conectado como ${c.user.tag}`);
 });
 
-client.on('messageCreate', async (message) => {
+client.on(Events.MessageCreate, async (message) => {
     if (message.author.bot || !message.content.startsWith(prefix)) return;
     
-
     // Solo staff+ (ManageGuild) puede usarlo
     if (!message.member.permissions.has(PermissionsBitField.Flags.ManageGuild)) {
         return message.reply("❌ No tienes permisos para usar este comando.");
@@ -61,4 +61,5 @@ client.on('messageCreate', async (message) => {
     }
 });
 
-client.login(process.env.TOKEN);
+client.login(token);
+
