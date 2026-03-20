@@ -28,7 +28,7 @@ client.on(Events.MessageCreate, async (message) => {
         return message.reply("🏓 Pong!");
     }
 
-    if (command === "verify" || command === "verifyaliado" || command === "verifyla") {
+    if (command === "verify" || command === "verifya" || command === "verifyla") {
         // Solo staff+ (ManageGuild) puede usarlo
         if (!message.member.permissions.has(PermissionsBitField.Flags.ManageGuild)) {
             return message.reply("❌ No tienes permisos para usar este comando.");
@@ -45,7 +45,7 @@ client.on(Events.MessageCreate, async (message) => {
             "🐇| Revivan"
         ];
 
-        if (command === "verifyaliado") {
+        if (command === "verifya") {
             rolesToAdd.push("🐇| Alianza");
         }
 
