@@ -28,7 +28,7 @@ client.on(Events.MessageCreate, async (message) => {
         return message.reply("🏓 Pong!");
     }
 
-    if (command === "verify" || command === "verifya" || command === "verifyla") {
+    if (command === "verify" || command === "verifyaliado" || command === "verifyla") {
         // Solo staff+ (ManageGuild) puede usarlo
         if (!message.member.permissions.has(PermissionsBitField.Flags.ManageGuild)) {
             return message.reply("❌ No tienes permisos para usar este comando.");
@@ -45,12 +45,10 @@ client.on(Events.MessageCreate, async (message) => {
             "🐇| Revivan"
         ];
 
-        // Si es verifyaliado, añadimos Alianza
-        if (command === "verifya") {
+        if (command === "verifyaliado") {
             rolesToAdd.push("🐇| Alianza");
         }
 
-        // Si es verifyLA, añadimos Alianza + Líder Ally
         if (command === "verifyla") {
             rolesToAdd.push("🐇| Alianza");
             rolesToAdd.push("| 𝐋𝐢𝐝𝐞𝐫 𝐀𝐥𝐥𝐲");
@@ -72,8 +70,18 @@ client.on(Events.MessageCreate, async (message) => {
 
         return message.reply(`✅ Se han asignado los roles a ${user.user.tag}`);
     }
-});
 
+    if (command === "help") {
+        return message.reply(
+            "**📜 Lista de comandos disponibles:**\n" +
+            "• `?ping` → Responde con Pong!\n" +
+            "• `?verify @usuario` → Asigna roles base y quita 'No Verificado'.\n" +
+            "• `?verifya @usuario` → Roles base + 🐇| Alianza.\n" +
+            "• `?verifyla @usuario` → Roles base + 🐇| Alianza + | 𝐋𝐢𝐝𝐞𝐫 𝐀𝐥𝐥𝐲.\n" +
+            "• `?help` → Muestra esta lista de comandos."
+        );
+    }
+});
 
 client.login(token);
 
