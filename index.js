@@ -28,7 +28,7 @@ client.on(Events.MessageCreate, async (message) => {
         return message.reply("🏓 Pong!");
     }
 
-    if (command === "verify") {
+    if (command === "verify" || command === "verifya" || command === "verifyla") {
         // Solo staff+ (ManageGuild) puede usarlo
         if (!message.member.permissions.has(PermissionsBitField.Flags.ManageGuild)) {
             return message.reply("❌ No tienes permisos para usar este comando.");
@@ -37,12 +37,24 @@ client.on(Events.MessageCreate, async (message) => {
         const user = message.mentions.members.first();
         if (!user) return message.reply("Debes mencionar a un usuario. Ejemplo: `?verify @usuario`");
 
+        // Roles base
         const rolesToAdd = [
             "⊹₊˚‧︵‿₊୨Popis Girls୧₊‿︵‧˚₊⊹",
             "Help Ping ִֶָ𓂃 ࣪˖ ִֶָ🐇་༘࿐",
             "⊹₊˚‧︵‿₊୨War Ping🐇୧₊‿︵‧˚₊⊹",
             "🐇| Revivan"
         ];
+
+        // Si es verifyaliado, añadimos Alianza
+        if (command === "verifya") {
+            rolesToAdd.push("🐇| Alianza");
+        }
+
+        // Si es verifyLA, añadimos Alianza + Líder Ally
+        if (command === "verifyla") {
+            rolesToAdd.push("🐇| Alianza");
+            rolesToAdd.push("| 𝐋𝐢𝐝𝐞𝐫 𝐀𝐥𝐥𝐲");
+        }
 
         for (const roleName of rolesToAdd) {
             const role = message.guild.roles.cache.find(r => r.name === roleName);
@@ -58,9 +70,10 @@ client.on(Events.MessageCreate, async (message) => {
             await user.roles.remove(roleToRemove).catch(err => console.log(err));
         }
 
-        message.reply(`✅ Se han asignado los roles a ${user.user.tag}`);
+        return message.reply(`✅ Se han asignado los roles a ${user.user.tag}`);
     }
 });
+
 
 client.login(token);
 
