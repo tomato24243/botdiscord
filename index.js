@@ -101,7 +101,7 @@ client.on(Events.MessageCreate, async (message) => {
     }
 
     // Guardar en la base
-    db.prepare("INSERT OR REPLACE INTO users (discord_id, roblox_username, roblox_link) VALUES (?, ?, ?)")
+    db.prepare("INSERT OR REPLACE INTO roblox_users (discord_id, roblox_username, roblox_link) VALUES (?, ?, ?)")
       .run(message.author.id, username, link);
 
     // Embed de confirmación
