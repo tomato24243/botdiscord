@@ -99,10 +99,18 @@ client.on(Events.MessageCreate, async (message) => {
     if (!regex.test(link)) {
         return message.reply("❌ El link debe ser un perfil válido de Roblox (ejemplo: https://www.roblox.com/users/123456/profile).");
     }
-
-    // Guardar en la base
-    db.prepare("INSERT OR REPLACE INTO roblox_users (discord_id, roblox_username, roblox_link) VALUES (?, ?, ?)")
+    
+    try {
+    db.prepare("INSERT OR REPLACE INTO roblox_users (discordId, robloxName, robloxLink) VALUES (?, ?, ?)")
       .run(message.author.id, username, link);
+
+    return message.channel.send({ embeds: [embed] });
+    } catch (err) {
+    console.error(err);
+    return message.reply("⚠️ Hubo un error al guardar tu registro. Revisa la configuración de la base de datos.");
+    }
+
+
 
     // Embed de confirmación
     const { EmbedBuilder } = require("discord.js");
