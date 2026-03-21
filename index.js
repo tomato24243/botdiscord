@@ -84,32 +84,32 @@ client.on(Events.MessageCreate, async (message) => {
 
         return message.reply(`✅ Se han asignado los roles a ${user.user.tag}`);
     }
+  
     if (command === "reg") {
     const args = message.content.split(" ");
     const username = args[1];
     const link = args[2];
 
-    // Validación básica
     if (!username || !link) {
         return message.reply("❌ Uso correcto: `?reg <usuarioRoblox> <linkPerfil>`");
     }
 
-    // Validar que el link sea un perfil de Roblox
+    // Regex que acepta idioma opcional (/es/, /fr/, etc.)
     const regex = /^https:\/\/www\.roblox\.com(\/[a-z]{2})?\/users\/\d+\/profile$/;
     if (!regex.test(link)) {
         return message.reply("❌ El link debe ser un perfil válido de Roblox (ejemplo: https://www.roblox.com/users/123456/profile).");
     }
 
-    // Guardar o actualizar en la base de datos
+    // Guardar en la base
     db.prepare("INSERT OR REPLACE INTO users (discord_id, roblox_username, roblox_link) VALUES (?, ?, ?)")
       .run(message.author.id, username, link);
 
-    // Crear embed de confirmación
+    // Embed de confirmación
     const { EmbedBuilder } = require("discord.js");
     const embed = new EmbedBuilder()
-        .setColor(0x00AE86) // Verde/Azul profesional
+        .setColor(0x00AE86)
         .setTitle("✅ Registro actualizado")
-        .setDescription(`Tu perfil de Roblox ha sido registrado correctamente.`)
+        .setDescription("Tu perfil de Roblox ha sido registrado correctamente.")
         .addFields(
             { name: "Usuario Roblox", value: username, inline: true },
             { name: "Perfil", value: `[Ver perfil](${link})`, inline: true }
@@ -119,7 +119,6 @@ client.on(Events.MessageCreate, async (message) => {
 
     return message.channel.send({ embeds: [embed] });
 }
-
 
 if (command === "help") {
     const userData = db.prepare(`
