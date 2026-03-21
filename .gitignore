@@ -12,3 +12,6 @@ yarn-error.log*
 # Sistema
 .DS_Store
 Thumbs.db
+
+# Ignorar base de datos local
+botdata.db
