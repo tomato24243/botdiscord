@@ -95,7 +95,7 @@ client.on(Events.MessageCreate, async (message) => {
     }
 
     // Validar que el link sea un perfil de Roblox
-    const regex = /^https:\/\/www\.roblox\.com\/users\/\d+\/profile$/;
+    const regex = /^https:\/\/www\.roblox\.com(\/[a-z]{2})?\/users\/\d+\/profile$/;
     if (!regex.test(link)) {
         return message.reply("❌ El link debe ser un perfil válido de Roblox (ejemplo: https://www.roblox.com/users/123456/profile).");
     }
