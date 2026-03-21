@@ -2,6 +2,20 @@ const { Client, GatewayIntentBits, PermissionsBitField, Events } = require('disc
 require('dotenv').config();
 const token = process.env.DISCORD_TOKEN;
 
+const Database = require("better-sqlite3");
+const db = new Database("botdata.db");
+const { EmbedBuilder } = require('discord.js');
+
+// Crear tabla si no existe
+db.prepare(`
+    CREATE TABLE IF NOT EXISTS roblox_users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        discordId TEXT UNIQUE,
+        robloxName TEXT,
+        robloxLink TEXT
+    )
+`).run();
+
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -70,17 +84,69 @@ client.on(Events.MessageCreate, async (message) => {
 
         return message.reply(`✅ Se han asignado los roles a ${user.user.tag}`);
     }
+    if (command === "reg") {
+    const robloxName = args[0];
+    const robloxLink = args[1];
 
-    if (command === "help") {
-        return message.reply(
-            "**📜 Lista de comandos disponibles:**\n" +
-            "• `?ping` → Responde con Pong!\n" +
-            "• `?verify @usuario` → Asigna roles base y quita 'No Verificado'.\n" +
-            "• `?verifya @usuario` → Roles base + 🐇| Alianza.\n" +
-            "• `?verifyla @usuario` → Roles base + 🐇| Alianza + | 𝐋𝐢𝐝𝐞𝐫 𝐀𝐥𝐥𝐲.\n" +
-            "• `?help` → Muestra esta lista de comandos."
-        );
+    if (!robloxName || !robloxLink) {
+        return message.reply("❌ Debes escribir tu nombre de Roblox y el link. Ejemplo: `?reg User_Roblox https://www.roblox.com/users/123456/profile`");
     }
+
+    try {
+        db.prepare(`
+            INSERT OR REPLACE INTO roblox_users (discordId, robloxName, robloxLink)
+            VALUES (?, ?, ?)
+        `).run(message.author.id, robloxName, robloxLink);
+
+        return message.reply(`✅ Registrado correctamente:\n👤 Usuario: **${robloxName}**\n🔗 Perfil: ${robloxLink}`);
+    } catch (err) {
+        console.error(err);
+        return message.reply("⚠️ Ocurrió un error al registrar.");
+    }
+}
+
+if (command === "help") {
+    const userData = db.prepare(`
+        SELECT robloxName, robloxLink FROM roblox_users WHERE discordId = ?
+    `).get(message.author.id);
+
+    if (!userData) {
+        return message.reply("❌ No tienes un registro. Usa `?reg <roblox_user> <link>` primero.");
+    }
+
+    // Buscar el rol exacto
+    const helpRole = message.guild.roles.cache.find(r => r.name === "Help Ping ִֶָ𓂃 ࣪˖ ִֶָ🐇་༘࿐");
+    if (!helpRole) {
+        return message.reply("⚠️ No encontré el rol **Help Ping ִֶָ𓂃 ࣪˖ ִֶָ🐇་༘࿐** en el servidor.");
+    }
+
+    // Enviar solicitud de ayuda
+    return message.channel.send(
+        `${helpRole}\n📢 ¡${message.author} necesita ayuda!\n👤 roblox_user: **${userData.robloxName}**\n🔗 Perfil: ${userData.robloxLink}`
+    );
+}
+// Lista de comandos en formato embed
+if (command === "info") {
+    const embed = new EmbedBuilder()
+        .setColor(0x00AE86)
+        .setTitle("📜 Lista de comandos disponibles")
+        .setDescription("Aquí tienes todos los comandos que puedes usar con el bot:")
+        .addFields(
+            { name: "🏓 ?ping", value: "Responde con Pong!", inline: true },
+            { name: "✅ ?verify @usuario", value: "Asigna roles base y quita 'No Verificado'.", inline: false },
+            { name: "✅ ?verifya @usuario", value: "Roles base + 🐇| Alianza.", inline: false },
+            { name: "✅ ?verifyla @usuario", value: "Roles base + 🐇| Alianza + | 𝐋𝐢𝐝𝐞𝐫 𝐀𝐥𝐥𝐲.", inline: false },
+            { name: "👤 ?reg <roblox_user> <link>", value: "Registra tu nombre y perfil de Roblox.", inline: false },
+            { name: "📢 ?help", value: "Pide ayuda en Roblox, pingueando al rol y mostrando tu registro.", inline: false },
+            { name: "ℹ️ ?info", value: "Muestra esta lista de comandos.", inline: false }
+        )
+        .setThumbnail("https://upload.wikimedia.org/wikipedia/commons/6/6c/Roblox_Logo_2022.png") // 👈 Logo Roblox
+        .setFooter({ text: "Bot de verificación y ayuda Roblox 🐇", iconURL: "https://cdn-icons-png.flaticon.com/512/616/616408.png" }); // 👈 Conejito
+
+    return message.reply({ embeds: [embed] });
+}
+
+
 });
 
 client.login(token);
