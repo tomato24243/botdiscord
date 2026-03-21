@@ -85,7 +85,7 @@ client.on(Events.MessageCreate, async (message) => {
         return message.reply(`✅ Se han asignado los roles a ${user.user.tag}`);
     }
   
-    if (command === "reg") {
+if (command === "reg") {
     const args = message.content.split(" ");
     const username = args[1];
     const link = args[2];
@@ -99,33 +99,29 @@ client.on(Events.MessageCreate, async (message) => {
     if (!regex.test(link)) {
         return message.reply("❌ El link debe ser un perfil válido de Roblox (ejemplo: https://www.roblox.com/users/123456/profile).");
     }
-    
+
     try {
-    db.prepare("INSERT OR REPLACE INTO roblox_users (discordId, robloxName, robloxLink) VALUES (?, ?, ?)")
-      .run(message.author.id, username, link);
+        // Guardar en la tabla correcta
+        db.prepare("INSERT OR REPLACE INTO roblox_users (discordId, robloxName, robloxLink) VALUES (?, ?, ?)")
+          .run(message.author.id, username, link);
 
-    return message.channel.send({ embeds: [embed] });
+        // Embed de confirmación
+        const embed = new EmbedBuilder()
+            .setColor(0x00AE86)
+            .setTitle("✅ Registro actualizado")
+            .setDescription("Tu perfil de Roblox ha sido registrado correctamente.")
+            .addFields(
+                { name: "Usuario Roblox", value: username, inline: true },
+                { name: "Perfil", value: `[Ver perfil](${link})`, inline: true }
+            )
+            .setThumbnail("https://upload.wikimedia.org/wikipedia/commons/1/1b/Roblox_Logo_2022.png")
+            .setFooter({ text: "Sistema de verificación Roblox" });
+
+        return message.channel.send({ embeds: [embed] });
     } catch (err) {
-    console.error(err);
-    return message.reply("⚠️ Hubo un error al guardar tu registro. Revisa la configuración de la base de datos.");
+        console.error(err);
+        return message.reply("⚠️ Hubo un error al guardar tu registro. Revisa la configuración de la base de datos.");
     }
-
-
-
-    // Embed de confirmación
-    const { EmbedBuilder } = require("discord.js");
-    const embed = new EmbedBuilder()
-        .setColor(0x00AE86)
-        .setTitle("✅ Registro actualizado")
-        .setDescription("Tu perfil de Roblox ha sido registrado correctamente.")
-        .addFields(
-            { name: "Usuario Roblox", value: username, inline: true },
-            { name: "Perfil", value: `[Ver perfil](${link})`, inline: true }
-        )
-        .setThumbnail("https://upload.wikimedia.org/wikipedia/commons/1/1b/Roblox_Logo_2022.png")
-        .setFooter({ text: "Sistema de verificación Roblox" });
-
-    return message.channel.send({ embeds: [embed] });
 }
 
 if (command === "help") {
