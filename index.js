@@ -151,18 +151,29 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
 
     const subCommand = interaction.options.getString("subcomando");
-    const roles = interaction.options.getString("roles")
+    const rolesToAdd = interaction.options.getString("roles")
         .split(",")
         .map(r => r.trim())
         .filter(r => r.length > 0);
-    const validCommands = ["verify", "verifya", "verifyla"];
 
+    // Opcional: si no se pasa, será un array vacío
+    const rolesToRemove = interaction.options.getString("rolesEliminar")
+        ?.split(",")
+        .map(r => r.trim())
+        .filter(r => r.length > 0) || [];
+
+    const validCommands = ["verify", "verifya", "verifyla"];
     if (!validCommands.includes(subCommand)) {
         return interaction.reply({ content: "❌ Subcomando inválido.", ephemeral: true });
     }
 
-    await addRoles(interaction.guild.id, subCommand, roles);
-    return interaction.reply({ content: `✅ Roles añadidos a ${subCommand}: ${roles.join(", ")}`, ephemeral: true });
+    await addRoles(interaction.guild.id, subCommand, { add: rolesToAdd, remove: rolesToRemove });
+
+    return interaction.reply({ 
+        content: `✅ Roles añadidos a ${subCommand}: ${rolesToAdd.join(", ")}`
+               + (rolesToRemove.length > 0 ? `\n🗑️ Roles que se quitarán: ${rolesToRemove.join(", ")}` : ""),
+        ephemeral: true 
+    });
 }
 
 if (commandName === "removerole") {
@@ -346,26 +357,44 @@ client.on(Events.MessageCreate, async (message) => {
     return message.channel.send({ embeds: [embed] });
 }
 
-    // Mantener verify, verifya, verifyla igual que antes
-
     if (["verify", "verifya", "verifyla"].includes(command)) {
-        if (!message.mentions.members.size) return message.reply("❌ Debes mencionar al usuario. Ejemplo: `?verify @usuario`");
-        const member = message.mentions.members.first();
-       const roles = await getRoles(message.guild.id, command) || [];
-        if (roles.length === 0) return message.reply(`⚠️ No hay roles configurados para **${command}** en este servidor.`);
+    if (!message.mentions.members.size) 
+        return message.reply("❌ Debes mencionar al usuario. Ejemplo: `?verify @usuario`");
 
-        for (const roleName of roles) {
-            const role = message.guild.roles.cache.find(r => r.name === roleName);
-            if (role) await member.roles.add(role);
-        }
+    const member = message.mentions.members.first();
+    const { add: rolesToAdd = [], remove: rolesToRemove = [] } = await getRoles(message.guild.id, command) || {};
 
-        const embed = new EmbedBuilder()
-            .setColor(0x00AE86)
-            .setTitle("✅ Verificación completada")
-            .setDescription(`Se asignaron roles configurados para **${command}** a ${member.user.tag}.`)
-            .addFields({ name: "Roles asignados", value: roles.map(r => `• ${r}`).join("\n") });
-        return message.channel.send({ embeds: [embed] });
+    if (rolesToAdd.length === 0 && rolesToRemove.length === 0) {
+        return message.reply(`⚠️ No hay roles configurados para **${command}** en este servidor.`);
     }
+
+    // Asignar roles configurados
+    for (const roleName of rolesToAdd) {
+        const role = message.guild.roles.cache.find(r => r.name === roleName);
+        if (role) await member.roles.add(role);
+    }
+
+    // Eliminar roles configurados
+    for (const roleName of rolesToRemove) {
+        const role = message.guild.roles.cache.find(r => r.name === roleName);
+        if (role && member.roles.cache.has(role.id)) {
+            await member.roles.remove(role);
+        }
+    }
+
+    // Embed de confirmación
+    const embed = new EmbedBuilder()
+        .setColor(0x00AE86)
+        .setTitle("✅ Verificación completada")
+        .setDescription(`Se aplicaron los cambios de roles para **${command}** a ${member.user.tag}.`)
+        .addFields(
+            rolesToAdd.length > 0 ? { name: "Roles asignados", value: rolesToAdd.map(r => `• ${r}`).join("\n") } : null,
+            rolesToRemove.length > 0 ? { name: "Roles eliminados", value: rolesToRemove.map(r => `• ${r}`).join("\n") } : null
+        ).fields.filter(Boolean); // filtra los null
+
+    return message.channel.send({ embeds: [embed] });
+}
+
 
 });
 
