@@ -70,12 +70,13 @@ const commands = [
         ]
     },
     {
-        name: "addrole",
-        description: "Agregar roles a un subcomando",
-        options: [
-            { name: "subcomando", type: 3, description: "verify | verifya | verifyla", required: true },
-            { name: "roles", type: 3, description: "Lista de roles separados por coma", required: true }
-        ]
+    name: "addrole",
+    description: "Agregar roles a un subcomando",
+    options: [
+        { name: "subcomando", type: 3, description: "verify | verifya | verifyla", required: true },
+        { name: "roles", type: 3, description: "Lista de roles separados por coma", required: true },
+        { name: "roleseliminar", type: 3, description: "Lista de roles a eliminar separados por coma", required: false } // 👈 nuevo
+    ]
     },
     {
         name: "removerole",
