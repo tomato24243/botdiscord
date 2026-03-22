@@ -145,36 +145,56 @@ client.on(Events.InteractionCreate, async (interaction) => {
 }
 
 
-    if (commandName === "addrole") {
-    if (!interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator)) {
-        return interaction.reply({ content: "❌ Solo los administradores pueden usar este comando.", ephemeral: true });
+    const { SlashCommandBuilder, PermissionsBitField } = require("discord.js");
+
+module.exports = {
+    data: new SlashCommandBuilder()
+        .setName("addrole")
+        .setDescription("Configura roles para verificación")
+        .addStringOption(option =>
+            option.setName("subcomando")
+                .setDescription("El subcomando de verificación (verify, verifya, verifyla)")
+                .setRequired(true))
+        .addStringOption(option =>
+            option.setName("roles")
+                .setDescription("Roles a añadir (separados por coma)")
+                .setRequired(true))
+        .addStringOption(option =>
+            option.setName("roleseliminar")
+                .setDescription("Roles a eliminar (separados por coma)")
+                .setRequired(false)), // 👈 opcional
+
+    async execute(interaction) {
+        if (!interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator)) {
+            return interaction.reply({ content: "❌ Solo los administradores pueden usar este comando.", ephemeral: true });
+        }
+
+        const subCommand = interaction.options.getString("subcomando");
+        const rolesToAdd = interaction.options.getString("roles")
+            .split(",")
+            .map(r => r.trim())
+            .filter(r => r.length > 0);
+
+        const rolesToRemove = interaction.options.getString("roleseliminar")
+            ?.split(",")
+            .map(r => r.trim())
+            .filter(r => r.length > 0) || [];
+
+        const validCommands = ["verify", "verifya", "verifyla"];
+        if (!validCommands.includes(subCommand)) {
+            return interaction.reply({ content: "❌ Subcomando inválido.", ephemeral: true });
+        }
+
+        // Guardar roles en la base de datos (ahora como objeto con add/remove)
+        await addRoles(interaction.guild.id, subCommand, { add: rolesToAdd, remove: rolesToRemove });
+
+        return interaction.reply({ 
+            content: `✅ Roles añadidos a ${subCommand}: ${rolesToAdd.join(", ")}`
+                   + (rolesToRemove.length > 0 ? `\n🗑️ Roles que se quitarán: ${rolesToRemove.join(", ")}` : ""),
+            ephemeral: true 
+        });
     }
-
-    const subCommand = interaction.options.getString("subcomando");
-    const rolesToAdd = interaction.options.getString("roles")
-        .split(",")
-        .map(r => r.trim())
-        .filter(r => r.length > 0);
-
-    // Opcional: si no se pasa, será un array vacío
-    const rolesToRemove = interaction.options.getString("rolesEliminar")
-        ?.split(",")
-        .map(r => r.trim())
-        .filter(r => r.length > 0) || [];
-
-    const validCommands = ["verify", "verifya", "verifyla"];
-    if (!validCommands.includes(subCommand)) {
-        return interaction.reply({ content: "❌ Subcomando inválido.", ephemeral: true });
-    }
-
-    await addRoles(interaction.guild.id, subCommand, { add: rolesToAdd, remove: rolesToRemove });
-
-    return interaction.reply({ 
-        content: `✅ Roles añadidos a ${subCommand}: ${rolesToAdd.join(", ")}`
-               + (rolesToRemove.length > 0 ? `\n🗑️ Roles que se quitarán: ${rolesToRemove.join(", ")}` : ""),
-        ephemeral: true 
-    });
-}
+};
 
 if (commandName === "removerole") {
     if (!interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator)) {
@@ -390,11 +410,10 @@ client.on(Events.MessageCreate, async (message) => {
         .addFields(
             rolesToAdd.length > 0 ? { name: "Roles asignados", value: rolesToAdd.map(r => `• ${r}`).join("\n") } : null,
             rolesToRemove.length > 0 ? { name: "Roles eliminados", value: rolesToRemove.map(r => `• ${r}`).join("\n") } : null
-        ).fields.filter(Boolean); // filtra los null
+        ).fields.filter(Boolean);
 
     return message.channel.send({ embeds: [embed] });
 }
-
 
 });
 
