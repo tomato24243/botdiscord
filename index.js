@@ -3,6 +3,7 @@ require('dotenv').config();
 const token = process.env.DISCORD_TOKEN;
 const clientId = process.env.CLIENT_ID;
 
+console.log("DATABASE_URL:", process.env.DATABASE_URL);
 const { Pool } = require("pg");
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
