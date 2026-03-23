@@ -148,54 +148,48 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
     const { SlashCommandBuilder, PermissionsBitField } = require("discord.js");
 
-module.exports = {
-    data: new SlashCommandBuilder()
-        .setName("addrole")
-        .setDescription("Configura roles para verificación")
-        .addStringOption(option =>
-            option.setName("subcomando")
-                .setDescription("El subcomando de verificación (verify, verifya, verifyla)")
-                .setRequired(true))
-        .addStringOption(option =>
-            option.setName("roles")
-                .setDescription("Roles a añadir (separados por coma)")
-                .setRequired(true))
-        .addStringOption(option =>
-            option.setName("roleseliminar")
-                .setDescription("Roles a eliminar (separados por coma)")
-                .setRequired(false)), // 👈 opcional
-
-    async execute(interaction) {
-        if (!interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator)) {
-            return interaction.reply({ content: "❌ Solo los administradores pueden usar este comando.", ephemeral: true });
-        }
-
-        const subCommand = interaction.options.getString("subcomando");
-        const rolesToAdd = interaction.options.getString("roles")
-            .split(",")
-            .map(r => r.trim())
-            .filter(r => r.length > 0);
-
-        const rolesToRemove = interaction.options.getString("roleseliminar")
-            ?.split(",")
-            .map(r => r.trim())
-            .filter(r => r.length > 0) || [];
-
-        const validCommands = ["verify", "verifya", "verifyla"];
-        if (!validCommands.includes(subCommand)) {
-            return interaction.reply({ content: "❌ Subcomando inválido.", ephemeral: true });
-        }
-
-        // Guardar roles en la base de datos (ahora como objeto con add/remove)
-        await addRoles(interaction.guild.id, subCommand, { add: rolesToAdd, remove: rolesToRemove });
-
-        return interaction.reply({ 
-            content: `✅ Roles añadidos a ${subCommand}: ${rolesToAdd.join(", ")}`
-                   + (rolesToRemove.length > 0 ? `\n🗑️ Roles que se quitarán: ${rolesToRemove.join(", ")}` : ""),
-            ephemeral: true 
-        });
+if (commandName === "addrole") {
+    if (!interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator)) {
+        return interaction.reply({ content: "❌ Solo los administradores pueden usar este comando.", ephemeral: true });
     }
-};
+
+    const subCommand = interaction.options.getString("subcomando");
+    const rolesToAdd = interaction.options.getString("roles")
+        .split(",")
+        .map(r => r.trim())
+        .filter(r => r.length > 0);
+
+    const rolesToRemove = interaction.options.getString("roleseliminar")
+        ?.split(",")
+        .map(r => r.trim())
+        .filter(r => r.length > 0) || [];
+
+    const validCommands = ["verify", "verifya", "verifyla"];
+    if (!validCommands.includes(subCommand)) {
+        return interaction.reply({ content: "❌ Subcomando inválido.", ephemeral: true });
+    }
+
+    // Guardar roles en la base de datos
+    for (const role of rolesToAdd) {
+        await pool.query(
+            "INSERT INTO roles (guildId, command, roleName) VALUES ($1, $2, $3)",
+            [interaction.guild.id, subCommand, role]
+        );
+    }
+
+    for (const role of rolesToRemove) {
+        await pool.query(
+            "DELETE FROM roles WHERE guildId = $1 AND command = $2 AND roleName = $3",
+            [interaction.guild.id, subCommand, role]
+        );
+    }
+
+    return interaction.reply({ 
+        content: `✅ Roles añadidos a ${subCommand}: ${rolesToAdd.join(", ")}` +
+                 (rolesToRemove.length > 0 ? `\n🗑️ Roles eliminados: ${rolesToRemove.join(", ")}` : ""),
+        ephemeral: true 
+    });
+}
 
 if (commandName === "removerole") {
     if (!interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator)) {
