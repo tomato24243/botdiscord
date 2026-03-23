@@ -19,12 +19,13 @@ const pool = new Pool({
         );
     `);
     await pool.query(`
-        CREATE TABLE IF NOT EXISTS roles (
-            id SERIAL PRIMARY KEY,
-            guildId TEXT,
-            command TEXT,
-            roleName TEXT
-        );
+    CREATE TABLE IF NOT EXISTS roles (
+    id SERIAL PRIMARY KEY,
+    guildId TEXT NOT NULL,
+    command TEXT NOT NULL,
+    roleName TEXT NOT NULL,
+    action TEXT CHECK (action IN ('add','remove')) NOT NULL
+    );
     `);
     await pool.query(`
         CREATE TABLE IF NOT EXISTS settings (
@@ -169,17 +170,18 @@ if (commandName === "addrole") {
         return interaction.reply({ content: "❌ Subcomando inválido.", ephemeral: true });
     }
 
-    // Guardar roles en la base de datos
+    // Guardar roles a añadir
     for (const role of rolesToAdd) {
         await pool.query(
-            "INSERT INTO roles (guildId, command, roleName) VALUES ($1, $2, $3)",
+            "INSERT INTO roles (guildId, command, roleName, action) VALUES ($1, $2, $3, 'add')",
             [interaction.guild.id, subCommand, role]
         );
     }
 
+    // Guardar roles a eliminar
     for (const role of rolesToRemove) {
         await pool.query(
-            "DELETE FROM roles WHERE guildId = $1 AND command = $2 AND roleName = $3",
+            "INSERT INTO roles (guildId, command, roleName, action) VALUES ($1, $2, $3, 'remove')",
             [interaction.guild.id, subCommand, role]
         );
     }
@@ -377,7 +379,7 @@ client.on(Events.MessageCreate, async (message) => {
         return message.reply("❌ Debes mencionar al usuario. Ejemplo: `?verify @usuario`");
 
     const member = message.mentions.members.first();
-    const { add: rolesToAdd = [], remove: rolesToRemove = [] } = await getRoles(message.guild.id, command) || {};
+    const { add: rolesToAdd = [], remove: rolesToRemove = [] } = await getRoles(message.guild.id, command);
 
     if (rolesToAdd.length === 0 && rolesToRemove.length === 0) {
         return message.reply(`⚠️ No hay roles configurados para **${command}** en este servidor.`);
