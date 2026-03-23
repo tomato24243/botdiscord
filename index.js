@@ -43,10 +43,13 @@ async function addRoles(guildId, command, roles) {
 
 async function getRoles(guildId, command) {
     const res = await pool.query(
-        'SELECT roleName AS "roleName" FROM roles WHERE guildId = $1 AND command = $2',
+        'SELECT roleName, action FROM roles WHERE guildId = $1 AND command = $2',
         [guildId, command]
     );
-    return res.rows.map(r => r.roleName);
+    return {
+        add: res.rows.filter(r => r.action === 'add').map(r => r.roleName),
+        remove: res.rows.filter(r => r.action === 'remove').map(r => r.roleName)
+    };
 }
 
 const client = new Client({
@@ -146,8 +149,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
     return interaction.reply({ content: `✅ Rol de ayuda configurado: ${role.name}`, ephemeral: true });
 }
 
-
-    const { SlashCommandBuilder, PermissionsBitField } = require("discord.js");
 
 if (commandName === "addrole") {
     if (!interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator)) {
@@ -400,14 +401,15 @@ client.on(Events.MessageCreate, async (message) => {
     }
 
     // Embed de confirmación
-    const embed = new EmbedBuilder()
-        .setColor(0x00AE86)
-        .setTitle("✅ Verificación completada")
-        .setDescription(`Se aplicaron los cambios de roles para **${command}** a ${member.user.tag}.`)
-        .addFields(
-            rolesToAdd.length > 0 ? { name: "Roles asignados", value: rolesToAdd.map(r => `• ${r}`).join("\n") } : null,
-            rolesToRemove.length > 0 ? { name: "Roles eliminados", value: rolesToRemove.map(r => `• ${r}`).join("\n") } : null
-        ).fields.filter(Boolean);
+    const fields = [];
+if (rolesToAdd.length > 0) fields.push({ name: "Roles asignados", value: rolesToAdd.map(r => `• ${r}`).join("\n") });
+if (rolesToRemove.length > 0) fields.push({ name: "Roles eliminados", value: rolesToRemove.map(r => `• ${r}`).join("\n") });
+
+const embed = new EmbedBuilder()
+    .setColor(0x00AE86)
+    .setTitle("✅ Verificación completada")
+    .setDescription(`Se aplicaron los cambios de roles para **${command}** a ${member.user.tag}.`)
+    .addFields(fields);
 
     return message.channel.send({ embeds: [embed] });
 }
