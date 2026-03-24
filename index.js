@@ -2,6 +2,7 @@ const { Client, GatewayIntentBits, PermissionsBitField, Events, EmbedBuilder, RE
 require('dotenv').config();
 const token = process.env.DISCORD_TOKEN;
 const clientId = process.env.CLIENT_ID;
+const { MessageFlags } = require("discord.js");
 
 console.log("DATABASE_URL:", process.env.DATABASE_URL);
 const { Pool } = require("pg");
@@ -122,24 +123,33 @@ client.on(Events.InteractionCreate, async (interaction) => {
     if (!interaction.isChatInputCommand()) return;
     const { commandName } = interaction;
 
-    if (commandName === "reg") {
-        const username = interaction.options.getString("usuario");
-        const link = interaction.options.getString("link");
-        const regex = /^https:\/\/www\.roblox\.com(\/[a-z]{2})?\/users\/\d+\/profile(\?.*)?$/;
-        if (!regex.test(link)) return interaction.reply({ content: "❌ Link inválido.", ephemeral: true });
+    const { Client, GatewayIntentBits, PermissionsBitField, Events, EmbedBuilder, REST, Routes, MessageFlags } = require('discord.js');
+require('dotenv').config();
+const token = process.env.DISCORD_TOKEN;
+const clientId = process.env.CLIENT_ID;
 
-        await pool.query(`
-            INSERT INTO roblox_users (discordId, robloxName, robloxLink)
-            VALUES ($1, $2, $3)
-            ON CONFLICT (discordId) DO UPDATE SET robloxName = $2, robloxLink = $3
-        `, [interaction.user.id, username, link]);
+// ...
 
-        return interaction.reply({ content: `✅ Registro actualizado para ${username}`, ephemeral: true });
+if (commandName === "reg") {
+    const username = interaction.options.getString("usuario");
+    const link = interaction.options.getString("link");
+    const regex = /^https:\/\/www\.roblox\.com(\/[a-z]{2})?\/users\/\d+\/profile(\?.*)?$/;
+    if (!regex.test(link)) {
+        return interaction.reply({ content: "❌ Link inválido.", flags: MessageFlags.Ephemeral });
     }
 
-    if (commandName === "sethelprole") {
+    await pool.query(`
+        INSERT INTO roblox_users (discordId, robloxName, robloxLink)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (discordId) DO UPDATE SET robloxName = $2, robloxLink = $3
+    `, [interaction.user.id, username, link]);
+
+    return interaction.reply({ content: `✅ Registro actualizado para ${username}`, flags: MessageFlags.Ephemeral });
+}
+
+if (commandName === "sethelprole") {
     if (!interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator))  {
-        return interaction.reply({ content: "❌ Solo los administradores pueden usar este comando.", ephemeral: true });
+        return interaction.reply({ content: "❌ Solo los administradores pueden usar este comando.", flags: MessageFlags.Ephemeral });
     }
     const role = interaction.options.getRole("rol");
     await pool.query(`
@@ -147,13 +157,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
         VALUES ($1, $2)
         ON CONFLICT (guildId) DO UPDATE SET helpRoleId = $2
     `, [interaction.guild.id, role.id]);
-    return interaction.reply({ content: `✅ Rol de ayuda configurado: ${role.name}`, ephemeral: true });
+    return interaction.reply({ content: `✅ Rol de ayuda configurado: ${role.name}`, flags: MessageFlags.Ephemeral });
 }
-
 
 if (commandName === "addrole") {
     if (!interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator)) {
-        return interaction.reply({ content: "❌ Solo los administradores pueden usar este comando.", ephemeral: true });
+        return interaction.reply({ content: "❌ Solo los administradores pueden usar este comando.", flags: MessageFlags.Ephemeral });
     }
 
     const subCommand = interaction.options.getString("subcomando");
@@ -169,10 +178,9 @@ if (commandName === "addrole") {
 
     const validCommands = ["verify", "verifya", "verifyla"];
     if (!validCommands.includes(subCommand)) {
-        return interaction.reply({ content: "❌ Subcomando inválido.", ephemeral: true });
+        return interaction.reply({ content: "❌ Subcomando inválido.", flags: MessageFlags.Ephemeral });
     }
 
-    // Guardar roles a añadir
     for (const role of rolesToAdd) {
         await pool.query(
             "INSERT INTO roles (guildId, command, roleName, action) VALUES ($1, $2, $3, 'add')",
@@ -180,7 +188,6 @@ if (commandName === "addrole") {
         );
     }
 
-    // Guardar roles a eliminar
     for (const role of rolesToRemove) {
         await pool.query(
             "INSERT INTO roles (guildId, command, roleName, action) VALUES ($1, $2, $3, 'remove')",
@@ -191,13 +198,13 @@ if (commandName === "addrole") {
     return interaction.reply({ 
         content: `✅ Roles añadidos a ${subCommand}: ${rolesToAdd.join(", ")}` +
                  (rolesToRemove.length > 0 ? `\n🗑️ Roles eliminados: ${rolesToRemove.join(", ")}` : ""),
-        ephemeral: true 
+        flags: MessageFlags.Ephemeral 
     });
 }
 
 if (commandName === "removerole") {
     if (!interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator)) {
-        return interaction.reply({ content: "❌ Solo los administradores pueden usar este comando.", ephemeral: true });
+        return interaction.reply({ content: "❌ Solo los administradores pueden usar este comando.", flags: MessageFlags.Ephemeral });
     }
 
     const subCommand = interaction.options.getString("subcomando");
@@ -209,15 +216,15 @@ if (commandName === "removerole") {
     );
 
     if (result.rowCount === 0) {
-        return interaction.reply({ content: `⚠️ El rol ${roleToRemove} no estaba configurado en ${subCommand}.`, ephemeral: true });
+        return interaction.reply({ content: `⚠️ El rol ${roleToRemove} no estaba configurado en ${subCommand}.`, flags: MessageFlags.Ephemeral });
     }
 
-    return interaction.reply({ content: `🗑️ Rol eliminado: ${roleToRemove}`, ephemeral: true });
+    return interaction.reply({ content: `🗑️ Rol eliminado: ${roleToRemove}`, flags: MessageFlags.Ephemeral });
 }
 
 if (commandName === "clearroles") {
     if (!interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator)) {
-        return interaction.reply({ content: "❌ Solo los administradores pueden usar este comando.", ephemeral: true });
+        return interaction.reply({ content: "❌ Solo los administradores pueden usar este comando.", flags: MessageFlags.Ephemeral });
     }
 
     const subCommand = interaction.options.getString("subcomando");
@@ -228,12 +235,11 @@ if (commandName === "clearroles") {
     );
 
     if (result.rowCount === 0) {
-        return interaction.reply({ content: `⚠️ No había roles configurados para ${subCommand}.`, ephemeral: true });
+        return interaction.reply({ content: `⚠️ No había roles configurados para ${subCommand}.`, flags: MessageFlags.Ephemeral });
     }
 
-    return interaction.reply({ content: `🧹 Roles limpiados para ${subCommand}`, ephemeral: true });
+    return interaction.reply({ content: `🧹 Roles limpiados para ${subCommand}`, flags: MessageFlags.Ephemeral });
 }
-});
 
 // Prefijo commands
 client.on(Events.MessageCreate, async (message) => {
