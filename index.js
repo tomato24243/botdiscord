@@ -13,30 +13,42 @@ const pool = new Pool({
 
 // Crear tablas si no existen
 (async () => {
-    await pool.query(`
-        CREATE TABLE IF NOT EXISTS roblox_users (
-            discordId TEXT PRIMARY KEY,
-            robloxName TEXT,
-            robloxLink TEXT
-        );
-    `);
-    await pool.query(`
-    CREATE TABLE IF NOT EXISTS roles (
-    id SERIAL PRIMARY KEY,
-    guildId TEXT NOT NULL,
-    command TEXT NOT NULL,
-    roleId TEXT NOT NULL,
-    action TEXT CHECK (action IN ('add','remove')) NOT NULL
-);
+    try {
+        console.log("📡 Conectando a la base de datos...");
 
-    `);
-    await pool.query(`
-        CREATE TABLE IF NOT EXISTS settings (
-            guildId TEXT PRIMARY KEY,
-            helpRoleId TEXT
-        );
-    `);
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS roblox_users (
+                discordId TEXT PRIMARY KEY,
+                robloxName TEXT,
+                robloxLink TEXT
+            );
+        `);
+        console.log("✅ Tabla roblox_users verificada/creada.");
+
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS roles (
+                id SERIAL PRIMARY KEY,
+                guildId TEXT NOT NULL,
+                command TEXT NOT NULL,
+                roleId TEXT NOT NULL,
+                action TEXT CHECK (action IN ('add','remove')) NOT NULL
+            );
+        `);
+        console.log("✅ Tabla roles verificada/creada.");
+
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS settings (
+                guildId TEXT PRIMARY KEY,
+                helpRoleId TEXT
+            );
+        `);
+        console.log("✅ Tabla settings verificada/creada.");
+
+    } catch (err) {
+        console.error("❌ Error al crear tablas:", err);
+    }
 })();
+
 
 async function addRoles(guildId, command, roles) {
     for (const role of roles) {
