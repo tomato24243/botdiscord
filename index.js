@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, PermissionsBitField, Events, EmbedBuilder, REST, Routes } = require('discord.js');
+const { Client, GatewayIntentBits, PermissionsBitField, Events, EmbedBuilder, REST, Routes, MessageFlags } = require('discord.js');
 require('dotenv').config();
 const token = process.env.DISCORD_TOKEN;
 const clientId = process.env.CLIENT_ID;
