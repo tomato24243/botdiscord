@@ -2,7 +2,7 @@ const { Client, GatewayIntentBits, PermissionsBitField, Events, EmbedBuilder, RE
 require('dotenv').config();
 const token = process.env.DISCORD_TOKEN;
 const clientId = process.env.CLIENT_ID;
-const { MessageFlags } = require("discord.js");
+
 
 console.log("DATABASE_URL:", process.env.DATABASE_URL);
 const { Pool } = require("pg");
@@ -122,12 +122,6 @@ client.once(Events.ClientReady, (c) => {
 client.on(Events.InteractionCreate, async (interaction) => {
     if (!interaction.isChatInputCommand()) return;
     const { commandName } = interaction;
-
-    const { Client, GatewayIntentBits, PermissionsBitField, Events, EmbedBuilder, REST, Routes, MessageFlags } = require('discord.js');
-require('dotenv').config();
-const token = process.env.DISCORD_TOKEN;
-const clientId = process.env.CLIENT_ID;
-
 // ...
 
 if (commandName === "reg") {
@@ -240,7 +234,7 @@ if (commandName === "clearroles") {
 
     return interaction.reply({ content: `🧹 Roles limpiados para ${subCommand}`, flags: MessageFlags.Ephemeral });
 }
-
+});
 // Prefijo commands
 client.on(Events.MessageCreate, async (message) => {
     if (message.author.bot || !message.content.startsWith(prefix)) return;
@@ -419,7 +413,7 @@ const embed = new EmbedBuilder()
     .addFields(fields);
 
     return message.channel.send({ embeds: [embed] });
-}
+   }
 
 });
 
