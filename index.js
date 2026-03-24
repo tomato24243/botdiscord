@@ -25,9 +25,10 @@ const pool = new Pool({
     id SERIAL PRIMARY KEY,
     guildId TEXT NOT NULL,
     command TEXT NOT NULL,
-    roleName TEXT NOT NULL,
+    roleId TEXT NOT NULL,
     action TEXT CHECK (action IN ('add','remove')) NOT NULL
-    );
+);
+
     `);
     await pool.query(`
         CREATE TABLE IF NOT EXISTS settings (
@@ -39,18 +40,21 @@ const pool = new Pool({
 
 async function addRoles(guildId, command, roles) {
     for (const role of roles) {
-        await pool.query("INSERT INTO roles (guildId, command, roleName) VALUES ($1, $2, $3)", [guildId, command, role]);
+        await pool.query(
+            "INSERT INTO roles (guildId, command, roleId) VALUES ($1, $2, $3)",
+            [guildId, command, role]
+        );
     }
 }
 
 async function getRoles(guildId, command) {
     const res = await pool.query(
-        'SELECT roleName, action FROM roles WHERE guildId = $1 AND command = $2',
+        'SELECT roleId, action FROM roles WHERE guildId = $1 AND command = $2',
         [guildId, command]
     );
     return {
-        add: res.rows.filter(r => r.action === 'add').map(r => r.roleName),
-        remove: res.rows.filter(r => r.action === 'remove').map(r => r.roleName)
+        add: res.rows.filter(r => r.action === 'add').map(r => r.roleId),
+        remove: res.rows.filter(r => r.action === 'remove').map(r => r.roleId)
     };
 }
 
@@ -160,14 +164,17 @@ if (commandName === "addrole") {
     }
 
     const subCommand = interaction.options.getString("subcomando");
+
+    // Procesar roles a añadir (IDs)
     const rolesToAdd = interaction.options.getString("roles")
         .split(",")
-        .map(r => r.trim())
+        .map(r => r.trim().replace(/<@&(\d+)>/, "$1")) // extrae el ID si viene como mención
         .filter(r => r.length > 0);
 
+    // Procesar roles a eliminar (IDs)
     const rolesToRemove = interaction.options.getString("roleseliminar")
         ?.split(",")
-        .map(r => r.trim())
+        .map(r => r.trim().replace(/<@&(\d+)>/, "$1"))
         .filter(r => r.length > 0) || [];
 
     const validCommands = ["verify", "verifya", "verifyla"];
@@ -175,23 +182,29 @@ if (commandName === "addrole") {
         return interaction.reply({ content: "❌ Subcomando inválido.", flags: MessageFlags.Ephemeral });
     }
 
-    for (const role of rolesToAdd) {
-        await pool.query(
-            "INSERT INTO roles (guildId, command, roleName, action) VALUES ($1, $2, $3, 'add')",
-            [interaction.guild.id, subCommand, role]
-        );
-    }
+    // Guardar en la base de datos con roleId
+    // Guardar en la base de datos con roleId
+for (const roleId of rolesToAdd) {
+    await pool.query(
+        "INSERT INTO roles (guildId, command, roleId, action) VALUES ($1, $2, $3, 'add')",
+        [interaction.guild.id, subCommand, roleId]
+    );
+}
 
-    for (const role of rolesToRemove) {
-        await pool.query(
-            "INSERT INTO roles (guildId, command, roleName, action) VALUES ($1, $2, $3, 'remove')",
-            [interaction.guild.id, subCommand, role]
-        );
-    }
+for (const roleId of rolesToRemove) {
+    await pool.query(
+        "INSERT INTO roles (guildId, command, roleId, action) VALUES ($1, $2, $3, 'remove')",
+        [interaction.guild.id, subCommand, roleId]
+    );
+}
+
+    // Mostrar nombres de roles en la respuesta
+    const addedNames = rolesToAdd.map(id => interaction.guild.roles.cache.get(id)?.name || id);
+    const removedNames = rolesToRemove.map(id => interaction.guild.roles.cache.get(id)?.name || id);
 
     return interaction.reply({ 
-        content: `✅ Roles añadidos a ${subCommand}: ${rolesToAdd.join(", ")}` +
-                 (rolesToRemove.length > 0 ? `\n🗑️ Roles eliminados: ${rolesToRemove.join(", ")}` : ""),
+        content: `✅ Roles añadidos a ${subCommand}: ${addedNames.join(", ")}` +
+                 (removedNames.length > 0 ? `\n🗑️ Roles eliminados: ${removedNames.join(", ")}` : ""),
         flags: MessageFlags.Ephemeral 
     });
 }
@@ -202,18 +215,24 @@ if (commandName === "removerole") {
     }
 
     const subCommand = interaction.options.getString("subcomando");
-    const roleToRemove = interaction.options.getString("rol");
+    const roleToRemove = interaction.options.getString("rol").replace(/<@&(\d+)>/, "$1"); // extrae ID si viene como mención
 
     const result = await pool.query(
-        'DELETE FROM roles WHERE guildId = $1 AND command = $2 AND roleName = $3',
+        'DELETE FROM roles WHERE guildId = $1 AND command = $2 AND roleId = $3',
         [interaction.guild.id, subCommand, roleToRemove]
     );
 
     if (result.rowCount === 0) {
-        return interaction.reply({ content: `⚠️ El rol ${roleToRemove} no estaba configurado en ${subCommand}.`, flags: MessageFlags.Ephemeral });
+        return interaction.reply({ 
+            content: `⚠️ El rol ${interaction.guild.roles.cache.get(roleToRemove)?.name || roleToRemove} no estaba configurado en ${subCommand}.`, 
+            flags: MessageFlags.Ephemeral 
+        });
     }
 
-    return interaction.reply({ content: `🗑️ Rol eliminado: ${roleToRemove}`, flags: MessageFlags.Ephemeral });
+    return interaction.reply({ 
+        content: `🗑️ Rol eliminado: ${interaction.guild.roles.cache.get(roleToRemove)?.name || roleToRemove}`, 
+        flags: MessageFlags.Ephemeral 
+    });
 }
 
 if (commandName === "clearroles") {
@@ -381,6 +400,8 @@ client.on(Events.MessageCreate, async (message) => {
         return message.reply("❌ Debes mencionar al usuario. Ejemplo: `?verify @usuario`");
 
     const member = message.mentions.members.first();
+
+    // Obtenemos los roles configurados desde la BD (IDs)
     const { add: rolesToAdd = [], remove: rolesToRemove = [] } = await getRoles(message.guild.id, command);
 
     if (rolesToAdd.length === 0 && rolesToRemove.length === 0) {
@@ -388,14 +409,14 @@ client.on(Events.MessageCreate, async (message) => {
     }
 
     // Asignar roles configurados
-    for (const roleName of rolesToAdd) {
-        const role = message.guild.roles.cache.find(r => r.name === roleName);
+    for (const roleId of rolesToAdd) {
+        const role = message.guild.roles.cache.get(roleId);
         if (role) await member.roles.add(role);
     }
 
     // Eliminar roles configurados
-    for (const roleName of rolesToRemove) {
-        const role = message.guild.roles.cache.find(r => r.name === roleName);
+    for (const roleId of rolesToRemove) {
+        const role = message.guild.roles.cache.get(roleId);
         if (role && member.roles.cache.has(role.id)) {
             await member.roles.remove(role);
         }
@@ -403,17 +424,23 @@ client.on(Events.MessageCreate, async (message) => {
 
     // Embed de confirmación
     const fields = [];
-if (rolesToAdd.length > 0) fields.push({ name: "Roles asignados", value: rolesToAdd.map(r => `• ${r}`).join("\n") });
-if (rolesToRemove.length > 0) fields.push({ name: "Roles eliminados", value: rolesToRemove.map(r => `• ${r}`).join("\n") });
+    if (rolesToAdd.length > 0) {
+        const addedNames = rolesToAdd.map(id => message.guild.roles.cache.get(id)?.name || id);
+        fields.push({ name: "Roles asignados", value: addedNames.map(r => `• ${r}`).join("\n") });
+    }
+    if (rolesToRemove.length > 0) {
+        const removedNames = rolesToRemove.map(id => message.guild.roles.cache.get(id)?.name || id);
+        fields.push({ name: "Roles eliminados", value: removedNames.map(r => `• ${r}`).join("\n") });
+    }
 
-const embed = new EmbedBuilder()
-    .setColor(0x00AE86)
-    .setTitle("✅ Verificación completada")
-    .setDescription(`Se aplicaron los cambios de roles para **${command}** a ${member.user.tag}.`)
-    .addFields(fields);
+    const embed = new EmbedBuilder()
+        .setColor(0x00AE86)
+        .setTitle("✅ Verificación completada")
+        .setDescription(`Se aplicaron los cambios de roles para **${command}** a ${member.user.tag}.`)
+        .addFields(fields);
 
     return message.channel.send({ embeds: [embed] });
-   }
+}
 
 });
 
