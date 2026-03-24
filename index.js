@@ -181,32 +181,27 @@ if (commandName === "addrole") {
     if (!validCommands.includes(subCommand)) {
         return interaction.reply({ content: "❌ Subcomando inválido.", flags: MessageFlags.Ephemeral });
     }
+    // Función para añadir roles con acción explícita
+async function addRoles(guildId, command, rolesToAdd = [], rolesToRemove = []) {
+    // Añadir roles
+    for (const roleId of rolesToAdd) {
+        await pool.query(
+            "INSERT INTO roles (guildId, command, roleId, action) VALUES ($1, $2, $3, 'add') ON CONFLICT DO NOTHING",
+            [guildId, command, roleId]
+        );
+        console.log(`✅ Rol añadido: ${roleId} en ${command}`);
+    }
 
-    // Guardar en la base de datos con roleId
-    // Guardar en la base de datos con roleId
-for (const roleId of rolesToAdd) {
-    await pool.query(
-        "INSERT INTO roles (guildId, command, roleId, action) VALUES ($1, $2, $3, 'add')",
-        [interaction.guild.id, subCommand, roleId]
-    );
+    // Eliminar roles
+    for (const roleId of rolesToRemove) {
+        await pool.query(
+            "INSERT INTO roles (guildId, command, roleId, action) VALUES ($1, $2, $3, 'remove') ON CONFLICT DO NOTHING",
+            [guildId, command, roleId]
+        );
+        console.log(`🗑️ Rol marcado para eliminar: ${roleId} en ${command}`);
+    }
 }
 
-for (const roleId of rolesToRemove) {
-    await pool.query(
-        "INSERT INTO roles (guildId, command, roleId, action) VALUES ($1, $2, $3, 'remove')",
-        [interaction.guild.id, subCommand, roleId]
-    );
-}
-
-    // Mostrar nombres de roles en la respuesta
-    const addedNames = rolesToAdd.map(id => interaction.guild.roles.cache.get(id)?.name || id);
-    const removedNames = rolesToRemove.map(id => interaction.guild.roles.cache.get(id)?.name || id);
-
-    return interaction.reply({ 
-        content: `✅ Roles añadidos a ${subCommand}: ${addedNames.join(", ")}` +
-                 (removedNames.length > 0 ? `\n🗑️ Roles eliminados: ${removedNames.join(", ")}` : ""),
-        flags: MessageFlags.Ephemeral 
-    });
 }
 
 if (commandName === "removerole") {
