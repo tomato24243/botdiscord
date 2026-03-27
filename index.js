@@ -73,10 +73,19 @@ async function getRoles(guildId, command) {
         `SELECT roleId, action FROM roles WHERE guildId = $1 AND command = $2`,
         [guildId, command]
     );
-    return {
-        add: res.rows.filter(r => r.action === 'add').map(r => r.roleId),
-        remove: res.rows.filter(r => r.action === 'remove').map(r => r.roleId)
-    };
+
+    // Separar múltiples IDs en una sola celda
+    const add = res.rows
+        .filter(r => r.action === 'add')
+        .flatMap(r => r.roleid.split(/\s+/).map(id => id.replace(/<@&(\d+)>/, "$1")))
+        .filter(id => id.length > 0);
+
+    const remove = res.rows
+        .filter(r => r.action === 'remove')
+        .flatMap(r => r.roleid.split(/\s+/).map(id => id.replace(/<@&(\d+)>/, "$1")))
+        .filter(id => id.length > 0);
+
+    return { add, remove };
 }
 
 // Inicializar cliente
