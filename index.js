@@ -132,8 +132,6 @@ const commands = [
     }
 ];
 // Registrar slash commands en Discord
-const { REST, Routes } = require('discord.js');
-const rest = new REST({ version: '10' }).setToken(token);
 
 (async () => {
     try {
