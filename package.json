@@ -15,5 +15,14 @@
     "discord.js": "^14.25.1",
     "dotenv": "^17.3.1",
     "pg": "^8.20.0"
-  }
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tomato24243/botdiscord.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tomato24243/botdiscord/issues"
+  },
+  "homepage": "https://github.com/tomato24243/botdiscord#readme"
 }
