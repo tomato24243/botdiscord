@@ -1,11 +1,13 @@
-const { Client, GatewayIntentBits, PermissionsBitField, Events, EmbedBuilder, REST, Routes, MessageFlags } = require('discord.js');
+// Importar dependencias
+const { Client, GatewayIntentBits, PermissionsBitField, Events } = require('discord.js');
 require('dotenv').config();
+const { Pool } = require("pg");
+
+// Variables de entorno
 const token = process.env.DISCORD_TOKEN;
 const clientId = process.env.CLIENT_ID;
 
-
-console.log("DATABASE_URL:", process.env.DATABASE_URL);
-const { Pool } = require("pg");
+// Configuración de la base de datos
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false }
@@ -31,7 +33,8 @@ const pool = new Pool({
                 guildId TEXT NOT NULL,
                 command TEXT NOT NULL,
                 roleId TEXT NOT NULL,
-                action TEXT CHECK (action IN ('add','remove')) NOT NULL
+                action TEXT CHECK (action IN ('add','remove')) NOT NULL,
+                UNIQUE (guildId, command, roleId, action)
             );
         `);
         console.log("✅ Tabla roles verificada/creada.");
@@ -49,264 +52,387 @@ const pool = new Pool({
     }
 })();
 
-
-async function addRoles(guildId, command, roles) {
-    for (const role of roles) {
+// Función para añadir roles (con acción explícita)
+async function addRoles(guildId, command, rolesToAdd = [], rolesToRemove = []) {
+    for (const roleId of rolesToAdd) {
         await pool.query(
-            "INSERT INTO roles (guildId, command, roleId) VALUES ($1, $2, $3)",
-            [guildId, command, role]
+            `INSERT INTO roles (guildId, command, roleId, action)
+             VALUES ($1, $2, $3, 'add')
+             ON CONFLICT DO NOTHING`,
+            [guildId, command, roleId]
+        );
+    }
+
+    for (const roleId of rolesToRemove) {
+        await pool.query(
+            `INSERT INTO roles (guildId, command, roleId, action)
+             VALUES ($1, $2, $3, 'remove')
+             ON CONFLICT DO NOTHING`,
+            [guildId, command, roleId]
         );
     }
 }
 
+// Función para obtener roles configurados
 async function getRoles(guildId, command) {
     const res = await pool.query(
-        'SELECT roleId, action FROM roles WHERE guildId = $1 AND command = $2',
+        `SELECT roleId, action FROM roles WHERE guildId = $1 AND command = $2`,
         [guildId, command]
     );
+
     return {
         add: res.rows.filter(r => r.action === 'add').map(r => r.roleId),
         remove: res.rows.filter(r => r.action === 'remove').map(r => r.roleId)
     };
 }
 
+// Inicializar cliente de Discord
 const client = new Client({
     intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildMembers
+        GatewayIntentBits.Guilds,          // Información de servidores
+        GatewayIntentBits.GuildMessages,   // Mensajes en canales
+        GatewayIntentBits.MessageContent,  // Contenido de mensajes (prefijo)
+        GatewayIntentBits.GuildMembers     // Lista de miembros y roles
     ]
 });
 
-const prefix = "?";
-
-// Slash commands definition
+// Definición de slash commands
 const commands = [
     {
         name: "reg",
         description: "Registrar tu perfil de Roblox",
         options: [
-            { name: "usuario", type: 3, description: "Nombre de usuario Roblox", required: true },
-            { name: "link", type: 3, description: "Link al perfil Roblox", required: true }
+            { 
+                name: "usuario", 
+                type: 3, // STRING
+                description: "Nombre de usuario Roblox", 
+                required: true 
+            },
+            { 
+                name: "link", 
+                type: 3, // STRING
+                description: "Link al perfil Roblox", 
+                required: true 
+            }
         ]
     },
     {
-    name: "addrole",
-    description: "Agregar roles a un subcomando",
-    options: [
-        { name: "subcomando", type: 3, description: "verify | verifya | verifyla", required: true },
-        { name: "roles", type: 3, description: "Lista de roles separados por coma", required: true },
-        { name: "roleseliminar", type: 3, description: "Lista de roles a eliminar separados por coma", required: false } // 👈 nuevo
-    ]
+        name: "addrole",
+        description: "Agregar roles a un subcomando",
+        options: [
+            { 
+                name: "subcomando", 
+                type: 3, // STRING
+                description: "verify | verifya | verifyla", 
+                required: true 
+            },
+            { 
+                name: "roles", 
+                type: 3, // STRING
+                description: "Lista de roles separados por coma (IDs o menciones)", 
+                required: true 
+            },
+            { 
+                name: "roleseliminar", 
+                type: 3, // STRING
+                description: "Lista de roles a eliminar separados por coma (IDs o menciones)", 
+                required: false 
+            }
+        ]
     },
     {
         name: "removerole",
         description: "Eliminar un rol de un subcomando",
         options: [
-            { name: "subcomando", type: 3, description: "verify | verifya | verifyla", required: true },
-            { name: "rol", type: 3, description: "Nombre del rol a eliminar", required: true }
+            { 
+                name: "subcomando", 
+                type: 3, // STRING
+                description: "verify | verifya | verifyla", 
+                required: true 
+            },
+            { 
+                name: "rol", 
+                type: 3, // STRING
+                description: "Rol a eliminar (ID o mención)", 
+                required: true 
+            }
         ]
     },
     {
         name: "clearroles",
         description: "Eliminar todos los roles de un subcomando",
         options: [
-            { name: "subcomando", type: 3, description: "verify | verifya | verifyla", required: true }
+            { 
+                name: "subcomando", 
+                type: 3, // STRING
+                description: "verify | verifya | verifyla", 
+                required: true 
+            }
         ]
     },
     {
         name: "sethelprole",
         description: "Configurar el rol para ?help",
         options: [
-            { name: "rol", type: 8, description: "Selecciona un rol", required: true }
+            { 
+                name: "rol", 
+                type: 8, // ROLE
+                description: "Selecciona un rol", 
+                required: true 
+            }
         ]
     }
 ];
 
-// Registrar slash commands
+// Registrar slash commands en Discord
+const { REST, Routes } = require('discord.js');
 const rest = new REST({ version: '10' }).setToken(token);
+
 (async () => {
-    await rest.put(Routes.applicationCommands(clientId), { body: commands });
+    try {
+        console.log("📡 Registrando slash commands...");
+        await rest.put(
+            Routes.applicationCommands(clientId),
+            { body: commands }
+        );
+        console.log("✅ Slash commands registrados correctamente.");
+    } catch (err) {
+        console.error("❌ Error al registrar slash commands:", err);
+    }
 })();
 
-client.once(Events.ClientReady, (c) => {
-    console.log(`Bot conectado como ${c.user.tag}`);
-});
-
-// Slash command handler
+// Handler de slash commands
 client.on(Events.InteractionCreate, async (interaction) => {
     if (!interaction.isChatInputCommand()) return;
+
     const { commandName } = interaction;
-// ...
 
-if (commandName === "reg") {
-    const username = interaction.options.getString("usuario");
-    const link = interaction.options.getString("link");
-    const regex = /^https:\/\/www\.roblox\.com(\/[a-z]{2})?\/users\/\d+\/profile(\?.*)?$/;
-    if (!regex.test(link)) {
-        return interaction.reply({ content: "❌ Link inválido.", flags: MessageFlags.Ephemeral });
+    // /reg → Registrar perfil de Roblox
+    if (commandName === "reg") {
+        const username = interaction.options.getString("usuario");
+        const link = interaction.options.getString("link");
+
+        const regex = /^https:\/\/www\.roblox\.com(\/[a-z]{2})?\/users\/\d+\/profile(\?.*)?$/;
+        if (!regex.test(link)) {
+            return interaction.reply({ content: "❌ Link inválido.", ephemeral: true });
+        }
+
+        await pool.query(`
+            INSERT INTO roblox_users (discordId, robloxName, robloxLink)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (discordId) DO UPDATE SET robloxName = $2, robloxLink = $3
+        `, [interaction.user.id, username, link]);
+
+        return interaction.reply({ content: `✅ Registro actualizado para ${username}`, ephemeral: true });
     }
 
-    await pool.query(`
-        INSERT INTO roblox_users (discordId, robloxName, robloxLink)
-        VALUES ($1, $2, $3)
-        ON CONFLICT (discordId) DO UPDATE SET robloxName = $2, robloxLink = $3
-    `, [interaction.user.id, username, link]);
+    // /sethelprole → Configurar rol de ayuda
+    if (commandName === "sethelprole") {
+        if (!interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator)) {
+            return interaction.reply({ content: "❌ Solo los administradores pueden usar este comando.", ephemeral: true });
+        }
 
-    return interaction.reply({ content: `✅ Registro actualizado para ${username}`, flags: MessageFlags.Ephemeral });
-}
+        const role = interaction.options.getRole("rol");
+        await pool.query(`
+            INSERT INTO settings (guildId, helpRoleId)
+            VALUES ($1, $2)
+            ON CONFLICT (guildId) DO UPDATE SET helpRoleId = $2
+        `, [interaction.guild.id, role.id]);
 
-if (commandName === "sethelprole") {
-    if (!interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator))  {
-        return interaction.reply({ content: "❌ Solo los administradores pueden usar este comando.", flags: MessageFlags.Ephemeral });
-    }
-    const role = interaction.options.getRole("rol");
-    await pool.query(`
-        INSERT INTO settings (guildId, helpRoleId)
-        VALUES ($1, $2)
-        ON CONFLICT (guildId) DO UPDATE SET helpRoleId = $2
-    `, [interaction.guild.id, role.id]);
-    return interaction.reply({ content: `✅ Rol de ayuda configurado: ${role.name}`, flags: MessageFlags.Ephemeral });
-}
-
-if (commandName === "addrole") {
-    if (!interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator)) {
-        return interaction.reply({ content: "❌ Solo los administradores pueden usar este comando.", flags: MessageFlags.Ephemeral });
+        return interaction.reply({ content: `✅ Rol de ayuda configurado: ${role.name}`, ephemeral: true });
     }
 
-    const subCommand = interaction.options.getString("subcomando");
+    // /addrole → Agregar roles a un subcomando
+    if (commandName === "addrole") {
+        if (!interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator)) {
+            return interaction.reply({ content: "❌ Solo los administradores pueden usar este comando.", ephemeral: true });
+        }
 
-    // Procesar roles a añadir (IDs)
-    const rolesToAdd = interaction.options.getString("roles")
-        .split(",")
-        .map(r => r.trim().replace(/<@&(\d+)>/, "$1")) // extrae el ID si viene como mención
-        .filter(r => r.length > 0);
+        const subCommand = interaction.options.getString("subcomando");
+        const validCommands = ["verify", "verifya", "verifyla"];
+        if (!validCommands.includes(subCommand)) {
+            return interaction.reply({ content: "❌ Subcomando inválido.", ephemeral: true });
+        }
 
-    // Procesar roles a eliminar (IDs)
-    const rolesToRemove = interaction.options.getString("roleseliminar")
-        ?.split(",")
-        .map(r => r.trim().replace(/<@&(\d+)>/, "$1"))
-        .filter(r => r.length > 0) || [];
+        const rolesToAdd = interaction.options.getString("roles")
+            .split(",")
+            .map(r => r.trim().replace(/<@&(\d+)>/, "$1"))
+            .filter(r => r.length > 0);
 
-    const validCommands = ["verify", "verifya", "verifyla"];
-    if (!validCommands.includes(subCommand)) {
-        return interaction.reply({ content: "❌ Subcomando inválido.", flags: MessageFlags.Ephemeral });
+        const rolesToRemove = interaction.options.getString("roleseliminar")
+            ?.split(",")
+            .map(r => r.trim().replace(/<@&(\d+)>/, "$1"))
+            .filter(r => r.length > 0) || [];
+
+        await addRoles(interaction.guild.id, subCommand, rolesToAdd, rolesToRemove);
+
+        return interaction.reply({ content: `✅ Roles procesados para ${subCommand}`, ephemeral: true });
     }
-    // Función para añadir roles con acción explícita
-async function addRoles(guildId, command, rolesToAdd = [], rolesToRemove = []) {
-    // Añadir roles
-    for (const roleId of rolesToAdd) {
-        await pool.query(
-            "INSERT INTO roles (guildId, command, roleId, action) VALUES ($1, $2, $3, 'add') ON CONFLICT DO NOTHING",
-            [guildId, command, roleId]
+
+    // /removerole → Eliminar un rol específico
+    if (commandName === "removerole") {
+        if (!interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator)) {
+            return interaction.reply({ content: "❌ Solo los administradores pueden usar este comando.", ephemeral: true });
+        }
+
+        const subCommand = interaction.options.getString("subcomando");
+        const roleToRemove = interaction.options.getString("rol").replace(/<@&(\d+)>/, "$1");
+
+        const result = await pool.query(
+            `DELETE FROM roles WHERE guildId = $1 AND command = $2 AND roleId = $3`,
+            [interaction.guild.id, subCommand, roleToRemove]
         );
-        console.log(`✅ Rol añadido: ${roleId} en ${command}`);
+
+        if (result.rowCount === 0) {
+            return interaction.reply({ content: `⚠️ El rol no estaba configurado en ${subCommand}.`, ephemeral: true });
+        }
+
+        return interaction.reply({ content: `🗑️ Rol eliminado de ${subCommand}`, ephemeral: true });
     }
 
-    // Eliminar roles
-    for (const roleId of rolesToRemove) {
-        await pool.query(
-            "INSERT INTO roles (guildId, command, roleId, action) VALUES ($1, $2, $3, 'remove') ON CONFLICT DO NOTHING",
-            [guildId, command, roleId]
+    // /clearroles → Eliminar todos los roles de un subcomando
+    if (commandName === "clearroles") {
+        if (!interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator)) {
+            return interaction.reply({ content: "❌ Solo los administradores pueden usar este comando.", ephemeral: true });
+        }
+
+        const subCommand = interaction.options.getString("subcomando");
+        const result = await pool.query(
+            `DELETE FROM roles WHERE guildId = $1 AND command = $2`,
+            [interaction.guild.id, subCommand]
         );
-        console.log(`🗑️ Rol marcado para eliminar: ${roleId} en ${command}`);
+
+        if (result.rowCount === 0) {
+            return interaction.reply({ content: `⚠️ No había roles configurados para ${subCommand}.`, ephemeral: true });
+        }
+
+        return interaction.reply({ content: `🧹 Roles limpiados para ${subCommand}`, ephemeral: true });
     }
-}
-
-}
-
-if (commandName === "removerole") {
-    if (!interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator)) {
-        return interaction.reply({ content: "❌ Solo los administradores pueden usar este comando.", flags: MessageFlags.Ephemeral });
-    }
-
-    const subCommand = interaction.options.getString("subcomando");
-    const roleToRemove = interaction.options.getString("rol").replace(/<@&(\d+)>/, "$1"); // extrae ID si viene como mención
-
-    const result = await pool.query(
-        'DELETE FROM roles WHERE guildId = $1 AND command = $2 AND roleId = $3',
-        [interaction.guild.id, subCommand, roleToRemove]
-    );
-
-    if (result.rowCount === 0) {
-        return interaction.reply({ 
-            content: `⚠️ El rol ${interaction.guild.roles.cache.get(roleToRemove)?.name || roleToRemove} no estaba configurado en ${subCommand}.`, 
-            flags: MessageFlags.Ephemeral 
-        });
-    }
-
-    return interaction.reply({ 
-        content: `🗑️ Rol eliminado: ${interaction.guild.roles.cache.get(roleToRemove)?.name || roleToRemove}`, 
-        flags: MessageFlags.Ephemeral 
-    });
-}
-
-if (commandName === "clearroles") {
-    if (!interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator)) {
-        return interaction.reply({ content: "❌ Solo los administradores pueden usar este comando.", flags: MessageFlags.Ephemeral });
-    }
-
-    const subCommand = interaction.options.getString("subcomando");
-
-    const result = await pool.query(
-        'DELETE FROM roles WHERE guildId = $1 AND command = $2',
-        [interaction.guild.id, subCommand]
-    );
-
-    if (result.rowCount === 0) {
-        return interaction.reply({ content: `⚠️ No había roles configurados para ${subCommand}.`, flags: MessageFlags.Ephemeral });
-    }
-
-    return interaction.reply({ content: `🧹 Roles limpiados para ${subCommand}`, flags: MessageFlags.Ephemeral });
-}
 });
-// Prefijo commands
+// Definición del prefijo
+const prefix = "?";
+
+// Handler de comandos con prefijo
 client.on(Events.MessageCreate, async (message) => {
     if (message.author.bot || !message.content.startsWith(prefix)) return;
 
     const args = message.content.slice(prefix.length).trim().split(/ +/);
     const command = args.shift().toLowerCase();
 
+    // ?help → Pide ayuda en Roblox
     if (command === "help") {
-    // Buscar configuración del rol de ayuda en la tabla settings
-    const res = await pool.query(
-        'SELECT helpRoleId AS "helpRoleId" FROM settings WHERE guildId = $1',
-        [message.guild.id]
-    );
-    if (res.rowCount === 0) {
-        return message.reply("⚠️ No se ha configurado un rol de ayuda. Usa `/sethelprole`.");
+        const res = await pool.query(
+            `SELECT helpRoleId FROM settings WHERE guildId = $1`,
+            [message.guild.id]
+        );
+
+        if (res.rowCount === 0) {
+            return message.reply("⚠️ No se ha configurado un rol de ayuda. Usa `/sethelprole`.");
+        }
+
+        const helpRoleId = res.rows[0].helproleid;
+        const helpRole = message.guild.roles.cache.get(helpRoleId);
+        if (!helpRole) {
+            return message.reply("⚠️ El rol configurado ya no existe en el servidor.");
+        }
+
+        const userRes = await pool.query(
+            `SELECT robloxName, robloxLink FROM roblox_users WHERE discordId = $1`,
+            [message.author.id]
+        );
+
+        if (userRes.rowCount === 0) {
+            return message.reply("❌ No tienes un registro. Usa `/reg` primero.");
+        }
+
+        const userData = userRes.rows[0];
+
+        return message.channel.send(
+            `${helpRole}\n📢 ¡${message.author} necesita ayuda!\n👤 Roblox User: **${userData.robloxname}**\n🔗 Perfil: ${userData.robloxlink}`
+        );
     }
 
-    const helpRoleId = res.rows[0].helpRoleId;
-    const helpRole = message.guild.roles.cache.get(helpRoleId);
-    if (!helpRole) {
-        return message.reply("⚠️ El rol configurado ya no existe en el servidor.");
+    // ?ping → Responde Pong!
+    if (command === "ping") {
+        return message.reply("🏓 Pong!");
     }
 
-    // Buscar datos del usuario en la tabla roblox_users
-    const userRes = await pool.query(
-        'SELECT robloxName AS "robloxName", robloxLink AS "robloxLink" FROM roblox_users WHERE discordId = $1',
-        [message.author.id]
-    );
-    if (userRes.rowCount === 0) {
-        return message.reply("❌ No tienes un registro. Usa `/reg` primero.");
+    // ?userinfo → Muestra información de registro
+    if (command === "userinfo") {
+        let targetUser = message.author;
+        if (message.mentions.members.size) {
+            targetUser = message.mentions.members.first().user;
+        }
+
+        const userRes = await pool.query(
+            `SELECT robloxName, robloxLink FROM roblox_users WHERE discordId = $1`,
+            [targetUser.id]
+        );
+
+        if (userRes.rowCount === 0) {
+            return message.reply(`❌ ${targetUser.id === message.author.id 
+                ? "No tienes un registro. Usa `/reg` primero." 
+                : `El usuario ${targetUser.tag} no tiene un registro.`}`);
+        }
+
+        const userData = userRes.rows[0];
+
+        return message.channel.send({
+            embeds: [{
+                color: 0x00AE86,
+                title: "👤 Información de registro",
+                fields: [
+                    { name: "Usuario de Roblox", value: userData.robloxname, inline: true },
+                    { name: "Perfil", value: userData.robloxlink, inline: false }
+                ],
+                footer: { text: `Solicitado por ${message.author.tag}` }
+            }]
+        });
     }
 
-    const userData = userRes.rows[0];
+    // ?verify, ?verifya, ?verifyla → Asignar/eliminar roles configurados
+    if (["verify", "verifya", "verifyla"].includes(command)) {
+        if (!message.mentions.members.size) {
+            return message.reply("❌ Debes mencionar al usuario. Ejemplo: `?verify @usuario`");
+        }
 
-    // Enviar mensaje de ayuda al canal
-    return message.channel.send(
-        `${helpRole}\n📢 ¡${message.author} necesita ayuda!\n👤 Roblox User: **${userData.robloxName}**\n🔗 Perfil: ${userData.robloxLink}`
-    );
-}
+        const member = message.mentions.members.first();
+        const { add: rolesToAdd = [], remove: rolesToRemove = [] } = await getRoles(message.guild.id, command);
 
+        if (rolesToAdd.length === 0 && rolesToRemove.length === 0) {
+            return message.reply(`⚠️ No hay roles configurados para **${command}** en este servidor.`);
+        }
 
+        for (const roleId of rolesToAdd) {
+            const role = message.guild.roles.cache.get(roleId);
+            if (role) await member.roles.add(role);
+        }
+
+        for (const roleId of rolesToRemove) {
+            const role = message.guild.roles.cache.get(roleId);
+            if (role && member.roles.cache.has(role.id)) {
+                await member.roles.remove(role);
+            }
+        }
+
+        return message.channel.send({
+            embeds: [{
+                color: 0x00AE86,
+                title: "✅ Verificación completada",
+                description: `Se aplicaron los cambios de roles para **${command}** a ${member.user.tag}.`,
+                fields: [
+                    ...(rolesToAdd.length > 0 ? [{ name: "Roles asignados", value: rolesToAdd.map(id => message.guild.roles.cache.get(id)?.name || id).join("\n") }] : []),
+                    ...(rolesToRemove.length > 0 ? [{ name: "Roles eliminados", value: rolesToRemove.map(id => message.guild.roles.cache.get(id)?.name || id).join("\n") }] : [])
+                ]
+            }]
+        });
+    }
     if (command === "info") {
     const pages = [
         new EmbedBuilder()
-            .setColor(0x00AE86)
+            .setColor(0x3498db)
             .setTitle("📜 Comandos básicos")
+            .setDescription("Estos son los comandos principales que puedes usar:")
             .addFields(
                 { name: "🏓 ?ping", value: "Responde con Pong!", inline: true },
                 { name: "👤 /reg <usuario> <link>", value: "Registra tu nombre y perfil de Roblox.", inline: false },
@@ -315,8 +441,9 @@ client.on(Events.MessageCreate, async (message) => {
             .setFooter({ text: "Página 1/4" }),
 
         new EmbedBuilder()
-            .setColor(0x00AE86)
+            .setColor(0x2ecc71)
             .setTitle("⚙️ Comandos de verificación")
+            .setDescription("Estos comandos asignan o eliminan roles configurados:")
             .addFields(
                 { name: "✅ ?verify @usuario", value: "Asigna roles configurados para `verify`.", inline: false },
                 { name: "✅ ?verifya @usuario", value: "Asigna roles configurados para `verifya`.", inline: false },
@@ -325,130 +452,65 @@ client.on(Events.MessageCreate, async (message) => {
             .setFooter({ text: "Página 2/4" }),
 
         new EmbedBuilder()
-            .setColor(0x00AE86)
-            .setTitle("🛠️ Comandos de administración (slash)")
-            .addFields(
-                { name: "➕ /addrole <subcomando> <roles>", value: "Agrega roles a la configuración.", inline: false },
-                { name: "📜 /removerole <subcomando> <rol>", value: "Elimina un rol específico.", inline: false },
-                { name: "🧹 /clearroles <subcomando>", value: "Elimina todos los roles configurados.", inline: false },
-                { name: "⚙️ /sethelprole <rol>", value: "Configura el rol que se usará en `?help`.", inline: false }
-            )
-            .setFooter({ text: "Página 3/4" }),
+                .setColor(0x9b59b6)
+                .setTitle("ℹ️ Información general")
+                .setDescription("Este bot combina comandos clásicos con prefijo y nuevos slash commands para administración.\n\n✨ Diseñado para facilitar la gestión de roles y registros de Roblox.")
+                .setFooter({ text: "Página 3/4" }),
 
         new EmbedBuilder()
-            .setColor(0x00AE86)
-            .setTitle("ℹ️ Información")
-            .setDescription("Este bot combina comandos clásicos con prefijo y nuevos slash commands para administración.")
-            .setFooter({ text: "Página 4/4" })
-    ];
+                .setColor(0xe67e22)
+                .setTitle("🛠️ Comandos de administración")
+                .setDescription("Solo administradores pueden usar estos comandos:")
+                .addFields(
+                    { name: "➕ /addrole <subcomando> <roles>", value: "Agrega roles a la configuración.", inline: false },
+                    { name: "📜 /removerole <subcomando> <rol>", value: "Elimina un rol específico.", inline: false },
+                    { name: "🧹 /clearroles <subcomando>", value: "Elimina todos los roles configurados.", inline: false },
+                    { name: "⚙️ /sethelprole <rol>", value: "Configura el rol que se usará en `?help`.", inline: false }
+                )
+                .setFooter({ text: "Página 4/4" })
+        ];
 
-    let page = 0;
-    const row = {
-        type: 1,
-        components: [
-            { type: 2, style: 1, label: "⬅️", customId: "prev" },
-            { type: 2, style: 1, label: "➡️", customId: "next" }
-        ]
-    };
+        let page = 0;
+        const row = {
+            type: 1,
+            components: [
+                { type: 2, style: 1, label: "⬅️ Anterior", customId: "prev" },
+                { type: 2, style: 1, label: "➡️ Siguiente", customId: "next" }
+            ]
+        };
 
-    const msg = await message.channel.send({ embeds: [pages[page]], components: [row] });
-    const collector = msg.createMessageComponentCollector({ time: 60000 });
+        const msg = await message.channel.send({ embeds: [pages[page]], components: [row] });
+        const collector = msg.createMessageComponentCollector({ time: 60000 });
 
-    collector.on("collect", async (i) => {
-        if (i.user.id !== message.author.id) {
-            return i.reply({ content: "❌ Solo quien ejecutó el comando puede usar los botones.", ephemeral: true });
-        }
-        if (i.customId === "prev") page = page > 0 ? page - 1 : pages.length - 1;
-        else if (i.customId === "next") page = page + 1 < pages.length ? page + 1 : 0;
-        await i.update({ embeds: [pages[page]], components: [row] });
-    });
-}
-
-    if (command === "ping") {
-    return message.reply("🏓 Pong!");
+        collector.on("collect", async (i) => {
+            if (i.user.id !== message.author.id) {
+                return i.reply({ content: "❌ Solo quien ejecutó el comando puede usar los botones.", ephemeral: true });
+            }
+            if (i.customId === "prev") page = page > 0 ? page - 1 : pages.length - 1;
+            else if (i.customId === "next") page = page + 1 < pages.length ? page + 1 : 0;
+            await i.update({ embeds: [pages[page]], components: [row] });
+        });
     }
-    if (command === "userinfo") {
-    let targetUser = message.author;
-
-    // Si se menciona a alguien, usar ese usuario
-    if (message.mentions.members.size) {
-        targetUser = message.mentions.members.first().user;
-    }
-
-    // Buscar datos del usuario en la tabla roblox_users
-    const userRes = await pool.query(
-        'SELECT robloxName AS "robloxName", robloxLink AS "robloxLink" FROM roblox_users WHERE discordId = $1',
-        [targetUser.id]
-    );
-
-    if (userRes.rowCount === 0) {
-        return message.reply(`❌ ${targetUser.id === message.author.id 
-            ? "No tienes un registro. Usa `/reg` primero." 
-            : `El usuario ${targetUser.tag} no tiene un registro.`}`);
-    }
-
-    const userData = userRes.rows[0];
-
-    // Crear embed con la información del usuario
-    const embed = new EmbedBuilder()
-        .setColor(0x00AE86)
-        .setTitle("👤 Información de registro")
-        .addFields(
-            { name: "Usuario de Roblox", value: userData.robloxName, inline: true },
-            { name: "Perfil", value: userData.robloxLink, inline: false }
-        )
-        .setFooter({ text: `Solicitado por ${message.author.tag}` });
-
-    return message.channel.send({ embeds: [embed] });
-}
-
-    if (["verify", "verifya", "verifyla"].includes(command)) {
-    if (!message.mentions.members.size) 
-        return message.reply("❌ Debes mencionar al usuario. Ejemplo: `?verify @usuario`");
-
-    const member = message.mentions.members.first();
-
-    // Obtenemos los roles configurados desde la BD (IDs)
-    const { add: rolesToAdd = [], remove: rolesToRemove = [] } = await getRoles(message.guild.id, command);
-
-    if (rolesToAdd.length === 0 && rolesToRemove.length === 0) {
-        return message.reply(`⚠️ No hay roles configurados para **${command}** en este servidor.`);
-    }
-
-    // Asignar roles configurados
-    for (const roleId of rolesToAdd) {
-        const role = message.guild.roles.cache.get(roleId);
-        if (role) await member.roles.add(role);
-    }
-
-    // Eliminar roles configurados
-    for (const roleId of rolesToRemove) {
-        const role = message.guild.roles.cache.get(roleId);
-        if (role && member.roles.cache.has(role.id)) {
-            await member.roles.remove(role);
-        }
-    }
-
-    // Embed de confirmación
-    const fields = [];
-    if (rolesToAdd.length > 0) {
-        const addedNames = rolesToAdd.map(id => message.guild.roles.cache.get(id)?.name || id);
-        fields.push({ name: "Roles asignados", value: addedNames.map(r => `• ${r}`).join("\n") });
-    }
-    if (rolesToRemove.length > 0) {
-        const removedNames = rolesToRemove.map(id => message.guild.roles.cache.get(id)?.name || id);
-        fields.push({ name: "Roles eliminados", value: removedNames.map(r => `• ${r}`).join("\n") });
-    }
-
-    const embed = new EmbedBuilder()
-        .setColor(0x00AE86)
-        .setTitle("✅ Verificación completada")
-        .setDescription(`Se aplicaron los cambios de roles para **${command}** a ${member.user.tag}.`)
-        .addFields(fields);
-
-    return message.channel.send({ embeds: [embed] });
-}
 
 });
+
+client.once(Events.ClientReady, (c) => {
+    console.log(`✅ Bot conectado como ${c.user.tag}`);
+});
+process.on("unhandledRejection", (error) => {
+    console.error("❌ Error no manejado:", error);
+});
+client.on(Events.InteractionCreate, (interaction) => {
+    if (interaction.isChatInputCommand()) {
+        console.log(`📥 Slash command recibido: ${interaction.commandName}`);
+    }
+});
+
+client.on(Events.MessageCreate, (message) => {
+    if (!message.author.bot && message.content.startsWith(prefix)) {
+        console.log(`💬 Prefijo command recibido: ${message.content}`);
+    }
+});
+
 
 client.login(token);

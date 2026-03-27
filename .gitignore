@@ -15,3 +15,8 @@ Thumbs.db
 
 # Ignorar base de datos local
 botdata.db
+
+# Ignorar archivo de BFG
+bfg
+bfg.jar
+
