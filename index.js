@@ -361,6 +361,23 @@ client.on(Events.MessageCreate, async (message) => {
                 await member.roles.remove(role);
             }
         }
+        for (const roleId of rolesToAdd) {
+            const role = message.guild.roles.cache.get(roleId);
+            console.log("Intentando asignar rol:", roleId, role?.name);
+
+            if (!role) {
+                console.log("❌ No se encontró el rol en cache.");
+                continue;
+            }
+
+            try {
+                await member.roles.add(role);
+                console.log("✅ Rol asignado:", role.name);
+            } catch (error) {
+                console.error("❌ Error al asignar rol:", role.name, error);
+            }
+        }
+
 
         return message.channel.send({
             embeds: [{
