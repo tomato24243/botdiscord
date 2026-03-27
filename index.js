@@ -88,6 +88,8 @@ const client = new Client({
         GatewayIntentBits.GuildMembers
     ]
 });
+// Crear instancia de REST
+const rest = new REST({ version: '10' }).setToken(token);
 
 // Definición de slash commands
 const commands = [
