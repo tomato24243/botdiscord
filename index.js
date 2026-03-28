@@ -349,7 +349,7 @@ client.on(Events.MessageCreate, async (message) => {
     // ?verify, ?verifya, ?verifyla → Asignar/eliminar roles configurados
     if (["verify", "verifya", "verifyla"].includes(command)) {
         if (!message.member.permissions.has("MANAGE_ROLES")) {
-            return message.reply("❌ No tienes permisos para gestionar roles.");
+            return message.reply("❌ No eres parte del staff.");
         }
 
         if (!message.mentions.members.size) {
