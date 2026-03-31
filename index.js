@@ -41,6 +41,15 @@ const pool = new Pool({
                 helpRoleId TEXT
             );
         `);
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS moderation_settings (
+            guildId TEXT PRIMARY KEY,
+            logChannelId TEXT,
+            spamThreshold INT DEFAULT 15,   -- antes estaba en 5
+            timeoutDuration INT DEFAULT 10  -- minutos
+            );
+        `);
+
 
         console.log("✅ Tablas verificadas/creadas.");
     } catch (err) {
@@ -144,6 +153,21 @@ const commands = [
     {
         name: "unreg",
         description: "Eliminar tu registro de Roblox"
+    },
+    {
+        name: "setlogchannel",
+        description: "Configurar canal de logs de moderación",
+        options: [
+            { name: "canal", type: 7, description: "Selecciona un canal", required: true }
+        ]
+    },
+    {
+        name: "setspamconfig",
+        description: "Configurar umbral y duración del anti-spam",
+        options: [
+            { name: "umbral", type: 4, description: "Mensajes permitidos en 10s", required: true },
+            { name: "duracion", type: 4, description: "Duración del timeout en minutos", required: true }
+        ]
     }
 
 ];
@@ -335,6 +359,60 @@ client.on(Events.InteractionCreate, async (interaction) => {
     });
     }
 
+        if (commandName === "setlogchannel") {
+    if (!interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator)) {
+        return interaction.reply("❌ Solo administradores pueden usar este comando.");
+    }
+
+    const channel = interaction.options.getChannel("canal");
+    await pool.query(`
+        INSERT INTO moderation_settings (guildId, logChannelId)
+        VALUES ($1, $2)
+        ON CONFLICT (guildId) DO UPDATE SET logChannelId = $2
+    `, [interaction.guild.id, channel.id]);
+
+    return interaction.reply({
+        embeds: [{
+            color: 0x3498db,
+            title: "📡 Canal de logs configurado",
+            description: `Los reportes de moderación se enviarán a **${channel.name}**.`,
+            footer: { text: `Configurado por ${interaction.user.tag}` },
+            timestamp: new Date()
+        }]
+    });
+}
+
+    if (commandName === "setspamconfig") {
+    if (!interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator)) {
+        return interaction.reply("❌ Solo administradores pueden usar este comando.");
+    }
+
+    const threshold = interaction.options.getInteger("umbral");
+    const duration = interaction.options.getInteger("duracion");
+
+    await pool.query(`
+        INSERT INTO moderation_settings (guildId, spamThreshold, timeoutDuration)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (guildId) DO UPDATE SET spamThreshold = $2, timeoutDuration = $3
+    `, [interaction.guild.id, threshold, duration]);
+
+    // Embed de confirmación
+    return interaction.reply({
+        embeds: [{
+            color: 0x2ecc71,
+            title: "⚙️ Configuración anti-spam actualizada",
+            description: "Los parámetros de moderación fueron guardados correctamente.",
+            fields: [
+                { name: "Umbral", value: `${threshold} mensajes en 10s`, inline: true },
+                { name: "Timeout", value: `${duration} minutos`, inline: true }
+            ],
+            footer: { text: `Configurado por ${interaction.user.tag}` },
+            timestamp: new Date()
+        }]
+    });
+}
+
+
     // /unreg → Eliminar registro de Roblox
 if (commandName === "unreg") {
     const result = await pool.query(
@@ -352,10 +430,78 @@ if (commandName === "unreg") {
 });
 // Definición del prefijo
 const prefix = "?";
+//Tracker global
+const spamTracker = new Map();
 
 // Handler de comandos con prefijo
 client.on(Events.MessageCreate, async (message) => {
-    if (message.author.bot || !message.content.startsWith(prefix)) return;
+    if (message.author.bot) return;
+
+    const key = `${message.guild.id}-${message.author.id}`;
+    const now = Date.now();
+   
+    //--- AntiSpam ---
+    if (!spamTracker.has(key)) {
+        spamTracker.set(key, []);
+    }
+
+    const timestamps = spamTracker.get(key).filter(ts => now - ts < 10000); // últimos 10s
+    timestamps.push(now);
+    spamTracker.set(key, timestamps);
+
+    const res = await pool.query(
+        `SELECT logChannelId, spamThreshold, timeoutDuration FROM moderation_settings WHERE guildId = $1`,
+        [message.guild.id]
+    );
+
+    if (res.rowCount > 0) {
+        const { logchannelid, spamthreshold, timeoutduration } = res.rows[0];
+
+        if (timestamps.length >= spamthreshold) {
+            try {
+    await message.member.timeout(timeoutduration * 60 * 1000, "Spam detectado");
+
+    // Aviso público en el canal donde ocurrió
+    await message.channel.send({
+        embeds: [{
+            color: 0xf39c12,
+            title: "⏳ Usuario suspendido",
+            description: `${message.author} fue suspendido automáticamente por **spam**.`,
+            fields: [
+                { name: "Duración", value: `${timeoutduration} minutos`, inline: true },
+                { name: "Mensajes en 10s", value: `${timestamps.length}`, inline: true }
+            ],
+            footer: { text: "Sistema de moderación automática" },
+            timestamp: new Date()
+        }]
+    });
+
+    // Log al canal configurado
+    const logChannel = message.guild.channels.cache.get(logchannelid);
+    if (logChannel) {
+        logChannel.send({
+            embeds: [{
+                color: 0xe74c3c,
+                title: "🚨 Moderación: Spam detectado",
+                description: `${message.author.tag} fue suspendido.`,
+                fields: [
+                    { name: "Duración", value: `${timeoutduration} minutos`, inline: true },
+                    { name: "Mensajes en 10s", value: `${timestamps.length}`, inline: true }
+                ],
+                timestamp: new Date()
+            }]
+        });
+    }
+} catch (err) {
+    console.error("❌ Error aplicando timeout:", err);
+}
+
+
+            spamTracker.set(key, []); // reset
+        }
+    }
+
+    if (!message.content.startsWith(prefix)) return;
 
     const args = message.content.slice(prefix.length).trim().split(/ +/);
     const command = args.shift().toLowerCase();
@@ -534,8 +680,20 @@ client.on(Events.MessageCreate, async (message) => {
             { name: "🧹 /clearroles <subcomando>", value: "Elimina todos los roles configurados.", inline: false },
             { name: "⚙️ /sethelprole <rol>", value: "Configura el rol que se usará en `?help`.", inline: false }
         )
-        .setFooter({ text: "Página 4/4" })
+        .setFooter({ text: "Página 4/4" }),
+    
+        new EmbedBuilder()
+        .setColor(0xe74c3c)
+        .setTitle("🚨 Moderación automática")
+        .setDescription("El bot cuenta con un sistema anti-spam y opciones de configuración para administradores.")
+        .addFields(
+            { name: "⚙️ /setlogchannel <canal>", value: "Configura el canal donde se enviarán los reportes de moderación.", inline: false },
+            { name: "⚙️ /setspamconfig <umbral> <duración>", value: "Ajusta el número de mensajes permitidos en 10s y la duración de la suspensión.", inline: false },
+            { name: "⏳ Suspensión automática", value: "Si un usuario envía más mensajes de los permitidos en 10s, será suspendido automáticamente y se notificará en el canal.", inline: false }
+        )
+        .setFooter({ text: "Página 5/5" })
 ];
+
 
 
         let page = 0;
