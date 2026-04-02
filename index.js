@@ -25,7 +25,9 @@ const pool = new Pool({
         `);
 
         await pool.query(`
-            CREATE TABLE IF NOT EXISTS roles (
+            DROP TABLE IF EXISTS roles;
+
+            CREATE TABLE roles (
                 id SERIAL PRIMARY KEY,
                 guildId TEXT NOT NULL,
                 command TEXT NOT NULL,
@@ -58,7 +60,7 @@ const pool = new Pool({
 })();
 
 // Funciones auxiliares
-    async function addRoles(guildId, command, rolesToAdd = [], rolesToRemove = []) {
+async function addRoles(guildId, command, rolesToAdd = [], rolesToRemove = []) {
     for (const roleId of rolesToAdd) {
         await pool.query(
             `INSERT INTO roles (guildId, command, roleId, action)
@@ -77,7 +79,6 @@ const pool = new Pool({
         );
     }
 }
-
 
 async function getRoles(guildId, command) {
     const res = await pool.query(
