@@ -29,9 +29,9 @@ const pool = new Pool({
                 id SERIAL PRIMARY KEY,
                 guildId TEXT NOT NULL,
                 command TEXT NOT NULL,
-                roleId TEXT NOT NULL,   -- ahora cada rol se guarda individualmente
+                roleId TEXT NOT NULL,
                 action TEXT NOT NULL CHECK (action IN ('add','remove')),
-                UNIQUE (guildId, command, roleId, action) -- evita duplicados
+                CONSTRAINT unique_role_entry UNIQUE (guildId, command, roleId, action)
             );
         `);
 
