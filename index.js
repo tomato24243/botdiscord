@@ -257,12 +257,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
     .map(r => r.trim())
     .filter(r => r.length > 0)
     .map(r => {
-        // Si es mención <@&123>, extrae el número
         const match = r.match(/^<@&(\d+)>$/);
-        return match ? match[1] : r; // si no es mención, deja el texto tal cual
+        return match ? match[1] : r; // si es mención, extrae el ID; si no, deja el texto
     })
     .filter(roleId => /^\d+$/.test(roleId)) // solo IDs numéricos
     .filter(roleId => interaction.guild.roles.cache.has(roleId));
+
 
     // Validar roles a eliminar
     const rolesToRemove = interaction.options.getString("roleseliminar")
@@ -272,6 +272,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
         .map(r => r.replace(/<@&(\d+)>/, "$1"))
         .filter(roleId => /^\d+$/.test(roleId)) // solo IDs numéricos
         .filter(roleId => interaction.guild.roles.cache.has(roleId)) || [];
+
+        console.log("RolesToAdd:", rolesToAdd);
+        console.log("RolesToRemove:", rolesToRemove);
+
 
     if (rolesToAdd.length === 0 && rolesToRemove.length === 0) {
         return interaction.reply("⚠️ No se proporcionaron roles válidos.");
