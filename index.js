@@ -253,12 +253,16 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
     // Validar roles a agregar
     const rolesToAdd = interaction.options.getString("roles")
-        .split(",")
-        .map(r => r.trim())
-        .filter(r => r.length > 0)
-        .map(r => r.replace(/<@&(\d+)>/, "$1"))
-        .filter(roleId => /^\d+$/.test(roleId)) // solo IDs numéricos
-        .filter(roleId => interaction.guild.roles.cache.has(roleId)); // rol debe existir
+    .split(",")
+    .map(r => r.trim())
+    .filter(r => r.length > 0)
+    .map(r => {
+        // Si es mención <@&123>, extrae el número
+        const match = r.match(/^<@&(\d+)>$/);
+        return match ? match[1] : r; // si no es mención, deja el texto tal cual
+    })
+    .filter(roleId => /^\d+$/.test(roleId)) // solo IDs numéricos
+    .filter(roleId => interaction.guild.roles.cache.has(roleId));
 
     // Validar roles a eliminar
     const rolesToRemove = interaction.options.getString("roleseliminar")
@@ -651,7 +655,7 @@ client.on(Events.MessageCreate, async (message) => {
             { name: "📢 ?help", value: "Pide ayuda en Roblox, pingueando al rol configurado y mostrando tu registro.", inline: false },
             { name: "ℹ️ ?userinfo [@usuario]", value: "Muestra tu registro o el de otro usuario.", inline: false }
         )
-        .setFooter({ text: "Página 1/4" }),
+        .setFooter({ text: "Página 1/5" }),
 
     new EmbedBuilder()
         .setColor(0x2ecc71)
@@ -662,13 +666,13 @@ client.on(Events.MessageCreate, async (message) => {
             { name: "🔒 ?verifya @usuario", value: "Asigna roles configurados para `verifya`.", inline: false },
             { name: "🔑 ?verifyla @usuario", value: "Asigna roles configurados para `verifyla`.", inline: false }
         )
-        .setFooter({ text: "Página 2/4" }),
+        .setFooter({ text: "Página 2/5" }),
 
     new EmbedBuilder()
         .setColor(0x9b59b6)
         .setTitle("ℹ️ Información general")
         .setDescription("Este bot combina comandos clásicos con prefijo y nuevos slash commands para administración.\n\n✨ Diseñado para facilitar la gestión de roles y registros de Roblox.")
-        .setFooter({ text: "Página 3/4" }),
+        .setFooter({ text: "Página 3/5" }),
 
     new EmbedBuilder()
         .setColor(0xe67e22)
@@ -680,7 +684,7 @@ client.on(Events.MessageCreate, async (message) => {
             { name: "🧹 /clearroles <subcomando>", value: "Elimina todos los roles configurados.", inline: false },
             { name: "⚙️ /sethelprole <rol>", value: "Configura el rol que se usará en `?help`.", inline: false }
         )
-        .setFooter({ text: "Página 4/4" }),
+        .setFooter({ text: "Página 4/5" }),
     
         new EmbedBuilder()
         .setColor(0xe74c3c)
