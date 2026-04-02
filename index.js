@@ -26,12 +26,12 @@ const pool = new Pool({
 
         await pool.query(`
             CREATE TABLE IF NOT EXISTS roles (
-                id SERIAL PRIMARY KEY,
-                guildId TEXT NOT NULL,
-                command TEXT NOT NULL,
-                roleId TEXT NOT NULL,
-                action TEXT CHECK (action IN ('add','remove')) NOT NULL,
-                UNIQUE (guildId, command, roleId, action)
+                id SERIAL PRIMARY KEY,                -- identificador único autoincremental
+                guildId TEXT NOT NULL,                -- ID del servidor
+                command TEXT NOT NULL,                -- subcomando (verify, verifya, verifyla)
+                roleId TEXT NOT NULL,                 -- ID del rol
+                action TEXT NOT NULL CHECK (action IN ('add','remove')), -- acción: añadir o remover
+                UNIQUE (guildId, command, roleId, action) -- evita duplicados exactos
             );
         `);
 
@@ -59,25 +59,31 @@ const pool = new Pool({
 
 // Funciones auxiliares
 async function addRoles(guildId, command, rolesToAdd = [], rolesToRemove = []) {
-  if (rolesToAdd.length > 0) {
-    const values = rolesToAdd.map((_, i) => `($1, $2, $${i+3}, 'add')`).join(",");
-    await pool.query(
-      `INSERT INTO roles (guildId, command, roleId, action)
-       VALUES ${values}
-       ON CONFLICT DO NOTHING`,
-      [guildId, command, ...rolesToAdd]
-    );
-  }
+    // Deduplicar para evitar intentos repetidos
+    const uniqueRolesToAdd = [...new Set(rolesToAdd)];
+    const uniqueRolesToRemove = [...new Set(rolesToRemove)];
 
-  if (rolesToRemove.length > 0) {
-    const values = rolesToRemove.map((_, i) => `($1, $2, $${i+3}, 'remove')`).join(",");
-    await pool.query(
-      `INSERT INTO roles (guildId, command, roleId, action)
-       VALUES ${values}
-       ON CONFLICT DO NOTHING`,
-      [guildId, command, ...rolesToRemove]
-    );
-  }
+    // Insertar roles a añadir en lote
+    if (uniqueRolesToAdd.length > 0) {
+        const values = uniqueRolesToAdd.map((_, i) => `($1, $2, $${i+3}, 'add')`).join(",");
+        await pool.query(
+            `INSERT INTO roles (guildId, command, roleId, action)
+             VALUES ${values}
+             ON CONFLICT DO NOTHING`,
+            [guildId, command, ...uniqueRolesToAdd]
+        );
+    }
+
+    // Insertar roles a eliminar en lote
+    if (uniqueRolesToRemove.length > 0) {
+        const values = uniqueRolesToRemove.map((_, i) => `($1, $2, $${i+3}, 'remove')`).join(",");
+        await pool.query(
+            `INSERT INTO roles (guildId, command, roleId, action)
+             VALUES ${values}
+             ON CONFLICT DO NOTHING`,
+            [guildId, command, ...uniqueRolesToRemove]
+        );
+    }
 }
 
 async function getRoles(guildId, command) {
@@ -123,12 +129,28 @@ const commands = [
         ]
     },
     {
+        
         name: "addrole",
         description: "Agregar roles a un subcomando",
         options: [
-            { name: "subcomando", type: 3, description: "verify | verifya | verifyla", required: true },
-            { name: "roles", type: 3, description: "Lista de roles separados por coma", required: true },
-            { name: "roleseliminar", type: 3, description: "Lista de roles a eliminar separados por coma", required: false }
+            {
+                name: "subcomando",
+                type: 3, // STRING
+                description: "verify | verifya | verifyla",
+                required: true
+            },
+            {
+                name: "roles",
+                type: 8, // ROLE
+                description: "Rol a agregar",
+                required: true
+            },
+            {
+                name: "roleseliminar",
+                type: 8, // ROLE
+                description: "Rol a eliminar",
+                required: false
+                }
         ]
     },
     {
@@ -244,52 +266,61 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
     // /addrole → Agregar roles a un subcomando
     if (commandName === "addrole") {
+    // Validar permisos
     if (!interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator)) {
         return interaction.reply("❌ Solo los administradores pueden usar este comando.");
     }
 
+    // Validar subcomando
     const subCommand = interaction.options.getString("subcomando");
     const validCommands = ["verify", "verifya", "verifyla"];
     if (!validCommands.includes(subCommand)) {
         return interaction.reply("❌ Subcomando inválido.");
     }
 
-    // Validar roles a agregar
-    const rolesToAdd = [...new Set(
-  interaction.options.getString("roles")
-        .split(",")
-        .map(r => r.trim())
-        .filter(r => r.length > 0)
-        .map(r => {
-            const match = r.match(/^<@&(\d+)>$/);
-            return match ? match[1] : r;
-        })
-        .filter(roleId => /^\d+$/.test(roleId))
-        .filter(roleId => interaction.guild.roles.cache.has(roleId))
-    )];
+    // Capturar roles directamente (tipo ROLE)
+    const roleToAdd = interaction.options.getRole("roles");
+    const roleToRemove = interaction.options.getRole("roleseliminar");
 
+    const rolesToAdd = roleToAdd ? [roleToAdd.id] : [];
+    const rolesToRemove = roleToRemove ? [roleToRemove.id] : [];
 
-    // Validar roles a eliminar
-    const rolesToRemove = interaction.options.getString("roleseliminar")
-        ?.split(",")
-        .map(r => r.trim())
-        .filter(r => r.length > 0)
-        .map(r => r.replace(/<@&(\d+)>/, "$1"))
-        .filter(roleId => /^\d+$/.test(roleId)) // solo IDs numéricos
-        .filter(roleId => interaction.guild.roles.cache.has(roleId)) || [];
-
-        console.log("RolesToAdd:", rolesToAdd);
-        console.log("RolesToRemove:", rolesToRemove);
-
+    // Logs para depuración
+    console.log("RolesToAdd:", rolesToAdd);
+    console.log("RolesToRemove:", rolesToRemove);
 
     if (rolesToAdd.length === 0 && rolesToRemove.length === 0) {
         return interaction.reply("⚠️ No se proporcionaron roles válidos.");
     }
 
+    // Guardar en la base de datos
     await addRoles(interaction.guild.id, subCommand, rolesToAdd, rolesToRemove);
 
-    return interaction.reply(`✅ Roles procesados para ${subCommand}`);
-    }
+    // Crear embed de confirmación
+    const embed = new EmbedBuilder()
+        .setTitle("📋 Roles registrados")
+        .setColor(0x00AE86)
+        .addFields(
+            {
+                name: "Roles a añadir",
+                value: rolesToAdd.length > 0
+                    ? rolesToAdd.map(id => `<@&${id}>`).join("\n")
+                    : "Ninguno",
+                inline: true
+            },
+            {
+                name: "Roles a eliminar",
+                value: rolesToRemove.length > 0
+                    ? rolesToRemove.map(id => `<@&${id}>`).join("\n")
+                    : "Ninguno",
+                inline: true
+            }
+        )
+        .setFooter({ text: `Subcomando: ${subCommand}` })
+        .setTimestamp();
+
+    return interaction.reply({ embeds: [embed] });
+}
 
     // /removerole → Eliminar un rol específico
     if (commandName === "removerole") {
