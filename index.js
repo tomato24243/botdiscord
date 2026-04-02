@@ -59,22 +59,25 @@ const pool = new Pool({
 
 // Funciones auxiliares
 async function addRoles(guildId, command, rolesToAdd = [], rolesToRemove = []) {
-    for (const roleId of rolesToAdd) {
-        await pool.query(
-            `INSERT INTO roles (guildId, command, roleId, action)
-             VALUES ($1, $2, $3, 'add')
-             ON CONFLICT DO NOTHING`,
-            [guildId, command, roleId]
-        );
-    }
-    for (const roleId of rolesToRemove) {
-        await pool.query(
-            `INSERT INTO roles (guildId, command, roleId, action)
-             VALUES ($1, $2, $3, 'remove')
-             ON CONFLICT DO NOTHING`,
-            [guildId, command, roleId]
-        );
-    }
+  if (rolesToAdd.length > 0) {
+    const values = rolesToAdd.map((_, i) => `($1, $2, $${i+3}, 'add')`).join(",");
+    await pool.query(
+      `INSERT INTO roles (guildId, command, roleId, action)
+       VALUES ${values}
+       ON CONFLICT DO NOTHING`,
+      [guildId, command, ...rolesToAdd]
+    );
+  }
+
+  if (rolesToRemove.length > 0) {
+    const values = rolesToRemove.map((_, i) => `($1, $2, $${i+3}, 'remove')`).join(",");
+    await pool.query(
+      `INSERT INTO roles (guildId, command, roleId, action)
+       VALUES ${values}
+       ON CONFLICT DO NOTHING`,
+      [guildId, command, ...rolesToRemove]
+    );
+  }
 }
 
 async function getRoles(guildId, command) {
@@ -252,16 +255,18 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
 
     // Validar roles a agregar
-    const rolesToAdd = interaction.options.getString("roles")
-    .split(",")
-    .map(r => r.trim())
-    .filter(r => r.length > 0)
-    .map(r => {
-        const match = r.match(/^<@&(\d+)>$/);
-        return match ? match[1] : r; // si es mención, extrae el ID; si no, deja el texto
-    })
-    .filter(roleId => /^\d+$/.test(roleId)) // solo IDs numéricos
-    .filter(roleId => interaction.guild.roles.cache.has(roleId));
+    const rolesToAdd = [...new Set(
+  interaction.options.getString("roles")
+        .split(",")
+        .map(r => r.trim())
+        .filter(r => r.length > 0)
+        .map(r => {
+            const match = r.match(/^<@&(\d+)>$/);
+            return match ? match[1] : r;
+        })
+        .filter(roleId => /^\d+$/.test(roleId))
+        .filter(roleId => interaction.guild.roles.cache.has(roleId))
+    )];
 
 
     // Validar roles a eliminar
