@@ -271,28 +271,30 @@ client.on(Events.InteractionCreate, async (interaction) => {
     const rolesToAdd = interaction.options.getString("roles")
         .split(",")
         .map(r => r.trim())
-        .map(r => r.replace(/<@&(\d+)>/, "$1"))
-        .filter(roleId => /^\d+$/.test(roleId) && interaction.guild.roles.cache.has(roleId));
+        .map(r => r.replace(/<@&(\d+)>/, "$1")) // acepta menciones
+        .filter(roleId => /^\d+$/.test(roleId)); // solo números
 
     // Roles a eliminar
     const rolesToRemove = interaction.options.getString("roleseliminar")
         ?.split(",")
         .map(r => r.trim())
         .map(r => r.replace(/<@&(\d+)>/, "$1"))
-        .filter(roleId => /^\d+$/.test(roleId) && interaction.guild.roles.cache.has(roleId)) || [];
+        .filter(roleId => /^\d+$/.test(roleId)) || [];
 
     if (rolesToAdd.length === 0 && rolesToRemove.length === 0) {
         return interaction.reply("⚠️ No se proporcionaron roles válidos.");
     }
 
+    // Guardar en la BD
     await addRoles(interaction.guild.id, subCommand, rolesToAdd, rolesToRemove);
 
+    // Embed de confirmación
     const embed = new EmbedBuilder()
         .setTitle("📋 Roles registrados")
         .setColor(0x00AE86)
         .addFields(
-            { name: "Roles a añadir", value: rolesToAdd.map(id => `<@&${id}>`).join(" ") || "Ninguno" },
-            { name: "Roles a eliminar", value: rolesToRemove.map(id => `<@&${id}>`).join(" ") || "Ninguno" }
+            { name: "Roles a añadir", value: rolesToAdd.length ? rolesToAdd.map(id => `<@&${id}>`).join(" ") : "Ninguno" },
+            { name: "Roles a eliminar", value: rolesToRemove.length ? rolesToRemove.map(id => `<@&${id}>`).join(" ") : "Ninguno" }
         )
         .setFooter({ text: `Subcomando: ${subCommand}` })
         .setTimestamp();
