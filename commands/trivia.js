@@ -1,15 +1,14 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 
 // Importar todas las categorías
-const historyQuestions = require("../questions/history");
-const chemistryQuestions = require("../questions/chemistry");
-const physicsQuestions = require("../questions/physics");
-const mathQuestions = require("../questions/math");
-const artQuestions = require("../questions/art");
-const musicQuestions = require("../questions/music");
-const cinemaQuestions = require("../questions/cinema");
-const generalQuestions = require("../questions/general");
-
+const historyQuestions = require("./questions/history");
+const chemistryQuestions = require("./questions/chemistry");
+const cinemaQuestions = require("./questions/cinema");
+const generalQuestions = require("./questions/general");
+const artQuestions = require("./questions/art");
+const mathQuestions = require("./questions/math");
+const musicQuestions = require("./questions/music");
+const physicsQuestions = require("./questions/physics");
 // Pool general
 const allQuestions = [
   ...historyQuestions,
