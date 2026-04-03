@@ -25,6 +25,15 @@ const pool = new Pool({
         `);
 
         await pool.query(`
+            CREATE TABLE IF NOT EXISTS trivia_scores (
+                guild_id TEXT,
+                user_id TEXT,
+                points INTEGER DEFAULT 0,
+                PRIMARY KEY (guild_id, user_id)
+            );
+        `);
+
+        await pool.query(`
             CREATE TABLE IF NOT EXISTS roles (
                 id SERIAL PRIMARY KEY,
                 guildId TEXT NOT NULL,
@@ -444,6 +453,8 @@ if (commandName === "unreg") {
 });
 // Definición del prefijo
 const prefix = "?";
+
+const trivia = require("./commands/trivia");
 //Tracker global
 const spamTracker = new Map();
 
@@ -592,6 +603,52 @@ if (res.rowCount > 0) {
         );
     }
 
+     if (command === "trivia") return trivia.execute(message, args);
+
+if (command === "ranking") {
+  const res = await pool.query(
+    "SELECT user_id, points FROM trivia_scores WHERE guild_id = $1 ORDER BY points DESC LIMIT 10",
+    [message.guild.id]
+  );
+
+  if (res.rowCount === 0) {
+    return message.channel.send("📉 Aún no hay puntuaciones en este servidor.");
+  }
+
+  let ranking = res.rows.map((row, i) => {
+    const user = message.guild.members.cache.get(row.user_id);
+    const username = user ? user.displayName : row.user_id;
+    return `**${i + 1}.** ${username} — ${row.points} puntos`;
+  }).join("\n");
+
+  const embed = new EmbedBuilder()
+    .setTitle("🏆 Ranking Trivia")
+    .setDescription(ranking)
+    .setColor(0xf1c40f);
+
+  await message.channel.send({ embeds: [embed] });
+}
+
+if (command === "puntos") {
+  const res = await pool.query(
+    "SELECT points FROM trivia_scores WHERE guild_id = $1 AND user_id = $2",
+    [message.guild.id, message.author.id]
+  );
+
+  if (res.rowCount === 0) {
+    return message.reply("📉 Aún no tienes puntos en este servidor. ¡Juega con `?trivia` para empezar!");
+  }
+
+  const points = res.rows[0].points;
+
+  const embed = new EmbedBuilder()
+    .setTitle("🎯 Tus puntos de trivia")
+    .setDescription(`👤 ${message.author}\n🏆 Puntos acumulados: **${points}**`)
+    .setColor(0x1abc9c);
+
+  return message.channel.send({ embeds: [embed] });
+}
+
     // ?userinfo → Muestra información de registro
     if (command === "userinfo") {
         let targetUser = message.author;
@@ -699,7 +756,18 @@ if (res.rowCount > 0) {
             { name: "📢 ?help", value: "Pide ayuda en Roblox, pingueando al rol configurado y mostrando tu registro.", inline: false },
             { name: "ℹ️ ?userinfo [@usuario]", value: "Muestra tu registro o el de otro usuario.", inline: false }
         )
-        .setFooter({ text: "Página 1/5" }),
+        .setFooter({ text: "Página 1/6" }),
+
+    new EmbedBuilder()
+        .setColor(0x1abc9c)
+        .setTitle("🎲 Comandos de Trivia")
+        .setDescription("Juega trivia y compite con otros en el servidor:")
+        .addFields(
+            { name: "❓ ?trivia", value: "Lanza una pregunta aleatoria con botones.", inline: false },
+            { name: "🎯 ?puntos", value: "Muestra tu puntuación personal en este servidor.", inline: false },
+            { name: "🏆 ?ranking", value: "Muestra el top 10 de jugadores en el servidor.", inline: false }
+        )
+        .setFooter({ text: "Página 2/6" }), // ajusta el número de página según tu orden
 
     new EmbedBuilder()
         .setColor(0x2ecc71)
@@ -710,13 +778,13 @@ if (res.rowCount > 0) {
             { name: "🔒 ?verifya @usuario", value: "Asigna roles configurados para `verifya`.", inline: false },
             { name: "🔑 ?verifyla @usuario", value: "Asigna roles configurados para `verifyla`.", inline: false }
         )
-        .setFooter({ text: "Página 2/5" }),
+        .setFooter({ text: "Página 3/6" }),
 
     new EmbedBuilder()
         .setColor(0x9b59b6)
         .setTitle("ℹ️ Información general")
         .setDescription("Este bot combina comandos clásicos con prefijo y nuevos slash commands para administración.\n\n✨ Diseñado para facilitar la gestión de roles y registros de Roblox.")
-        .setFooter({ text: "Página 3/5" }),
+        .setFooter({ text: "Página 4/6" }),
 
     new EmbedBuilder()
         .setColor(0xe67e22)
@@ -728,7 +796,7 @@ if (res.rowCount > 0) {
             { name: "🧹 /clearroles <subcomando>", value: "Elimina todos los roles configurados.", inline: false },
             { name: "⚙️ /sethelprole <rol>", value: "Configura el rol que se usará en `?help`.", inline: false }
         )
-        .setFooter({ text: "Página 4/5" }),
+        .setFooter({ text: "Página 5/6" }),
     
         new EmbedBuilder()
         .setColor(0xe74c3c)
@@ -739,7 +807,7 @@ if (res.rowCount > 0) {
             { name: "⚙️ /setspamconfig <umbral> <duración>", value: "Ajusta el número de mensajes permitidos en 10s y la duración de la suspensión.", inline: false },
             { name: "⏳ Suspensión automática", value: "Si un usuario envía más mensajes de los permitidos en 10s, será suspendido automáticamente y se notificará en el canal.", inline: false }
         )
-        .setFooter({ text: "Página 5/5" })
+        .setFooter({ text: "Página 6/6" })
 ];
 
 
