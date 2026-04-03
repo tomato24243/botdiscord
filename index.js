@@ -452,18 +452,18 @@ client.on(Events.MessageCreate, async (message) => {
     if (message.author.bot) return;
 
     const key = `${message.guild.id}-${message.author.id}`;
-    const now = Date.now();
    
     //--- AntiSpam ---
    if (!spamTracker.has(key)) {
-    spamTracker.set(key, { timestamps: [], suspension: null });
+    spamTracker.set(key, { timestamps: [], suspension: null, longMsgCount: 0 });
 }
 
 const data = spamTracker.get(key);
-const timestamps = data.timestamps.filter(ts => now - ts < 10000); // últimos 10s
-timestamps.push(now);
-data.timestamps = timestamps;
-spamTracker.set(key, data);
+const now = Date.now();
+
+// Filtrar últimos 10s
+data.timestamps = data.timestamps.filter(ts => now - ts < 10000);
+data.timestamps.push(now);
 
 // Contar palabras del mensaje
 const wordCount = message.content.trim().split(/\s+/).length;
@@ -477,67 +477,77 @@ if (res.rowCount > 0) {
     const { logchannelid, spamthreshold, timeoutduration } = res.rows[0];
 
     // --- Detector 1: spam por frecuencia (tu lógica original) ---
-    if (timestamps.length >= spamthreshold) {
+    if (data.timestamps.length >= spamthreshold) {
         try {
             await message.member.timeout(timeoutduration * 60 * 1000, "Spam detectado (frecuencia)");
             // ... tus embeds y logs originales ...
-            spamTracker.set(key, { timestamps: [], suspension: data.suspension });
+            spamTracker.set(key, { timestamps: [], suspension: data.suspension, longMsgCount: 0 });
         } catch (err) {
             console.error("❌ Error aplicando timeout:", err);
         }
     }
 
-    // --- Detector 2: spam por longitud (>30 palabras) ---
-    if (wordCount > 30) {
-        try {
-            // Suspensión progresiva
-            let suspensionMs;
-            if (data.suspension) {
-                suspensionMs = data.suspension * 2;
-            } else {
-                suspensionMs = timeoutduration * 60 * 1000; // primera suspensión
-            }
+    // --- Detector 2: spam por longitud (≥50 palabras, mínimo 3 mensajes en 10s) ---
+    if (wordCount >= 50) {
+        data.longMsgCount += 1;
 
-            await message.member.timeout(suspensionMs, "Spam detectado (mensaje largo)");
+        if (data.longMsgCount >= 3) {
+            try {
+                // Suspensión progresiva
+                let suspensionMs;
+                if (data.suspension) {
+                    suspensionMs = data.suspension * 2;
+                } else {
+                    suspensionMs = timeoutduration * 60 * 1000; // primera suspensión
+                }
 
-            await message.channel.send({
-                embeds: [{
-                    color: 0xf39c12,
-                    title: "⏳ Usuario suspendido",
-                    description: `${message.author} fue suspendido automáticamente por **mensaje demasiado largo**.`,
-                    fields: [
-                        { name: "Duración", value: `${Math.floor(suspensionMs / 1000)} segundos`, inline: true },
-                        { name: "Palabras en mensaje", value: `${wordCount}`, inline: true }
-                    ],
-                    footer: { text: "Sistema de moderación automática" },
-                    timestamp: new Date()
-                }]
-            });
+                await message.member.timeout(suspensionMs, "Spam detectado (mensajes largos)");
 
-            const logChannel = message.guild.channels.cache.get(logchannelid);
-            if (logChannel) {
-                logChannel.send({
+                await message.channel.send({
                     embeds: [{
-                        color: 0xe74c3c,
-                        title: "🚨 Moderación: Mensaje largo detectado",
-                        description: `${message.author.tag} fue suspendido.`,
+                        color: 0xf39c12,
+                        title: "⏳ Usuario suspendido",
+                        description: `${message.author} fue suspendido automáticamente por **mensajes largos repetidos**.`,
                         fields: [
                             { name: "Duración", value: `${Math.floor(suspensionMs / 1000)} segundos`, inline: true },
-                            { name: "Palabras en mensaje", value: `${wordCount}`, inline: true }
+                            { name: "Mensajes largos en 10s", value: `${data.longMsgCount}`, inline: true },
+                            { name: "Palabras último mensaje", value: `${wordCount}`, inline: true }
                         ],
+                        footer: { text: "Sistema de moderación automática" },
                         timestamp: new Date()
                     }]
                 });
+
+                const logChannel = message.guild.channels.cache.get(logchannelid);
+                if (logChannel) {
+                    logChannel.send({
+                        embeds: [{
+                            color: 0xe74c3c,
+                            title: "🚨 Moderación: Mensajes largos detectados",
+                            description: `${message.author.tag} fue suspendido.`,
+                            fields: [
+                                { name: "Duración", value: `${Math.floor(suspensionMs / 1000)} segundos`, inline: true },
+                                { name: "Mensajes largos en 10s", value: `${data.longMsgCount}`, inline: true },
+                                { name: "Palabras último mensaje", value: `${wordCount}`, inline: true }
+                            ],
+                            timestamp: new Date()
+                        }]
+                    });
+                }
+
+                // Resetear contador de mensajes largos y guardar suspensión
+                spamTracker.set(key, { timestamps: data.timestamps, suspension: suspensionMs, longMsgCount: 0 });
+
+            } catch (err) {
+                console.error("❌ Error aplicando timeout:", err);
             }
-
-            // Guardar suspensión progresiva
-            spamTracker.set(key, { timestamps: data.timestamps, suspension: suspensionMs });
-
-        } catch (err) {
-            console.error("❌ Error aplicando timeout:", err);
+        } else {
+            // Actualizar sin sanción todavía
+            spamTracker.set(key, data);
         }
     }
 }
+
 
     if (!message.content.startsWith(prefix)) return;
 
