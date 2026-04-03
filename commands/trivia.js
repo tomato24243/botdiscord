@@ -20,8 +20,7 @@ const allQuestions = [
   ...historyQuestions,
   ...mathQuestions,
   ...musicQuestions,
-  ...physicsQuestions,
-  ...hardQuestions
+  ...physicsQuestions
 ];
 
 // 🔀 Barajado de opciones
@@ -43,21 +42,32 @@ module.exports = {
   name: "trivia",
   description: "Pregunta de trivia aleatoria",
   async execute(message) {
-    let q = allQuestions[Math.floor(Math.random() * allQuestions.length)];
-    q = shuffleOptions(q);
-
     // Obtener racha actual del usuario
     const streakRes = await pool.query(
       "SELECT current_streak FROM trivia_scores WHERE guild_id = $1 AND user_id = $2",
       [message.guild.id, message.author.id]
     );
     let streak = streakRes.rows.length > 0 ? streakRes.rows[0].current_streak : 0;
+
+    // Selección de pregunta según racha
+    let q;
+    let pointsValue = 1;
+    let difficultyNote = "";
+    if (streak >= 5) {
+      q = hardQuestions[Math.floor(Math.random() * hardQuestions.length)];
+      pointsValue = 2;
+      difficultyNote = `⚡ Pregunta difícil — vale **${pointsValue} puntos**`;
+    } else {
+      q = allQuestions[Math.floor(Math.random() * allQuestions.length)];
+    }
+    q = shuffleOptions(q);
+
     let streakText = streak > 0 ? `🔥 Racha actual: ${streak}` : "";
 
     const embed = new EmbedBuilder()
       .setTitle(`🎲 Trivia - ${q.category}`)
-      .setDescription(`${q.question}\n\n${streakText}`)
-      .setColor(0x3498db);
+      .setDescription(`${q.question}\n\n${streakText}\n${difficultyNote}`)
+      .setColor(streak >= 5 ? 0xe74c3c : 0x3498db); // rojo para difíciles, azul para normales
 
     const row = new ActionRowBuilder().addComponents(
       q.options.map((opt, i) =>
@@ -98,13 +108,13 @@ module.exports = {
         // ✅ Correcto → sumar puntos y racha
         await pool.query(`
           INSERT INTO trivia_scores (guild_id, user_id, points, current_streak, max_streak, congratulated, last_medal)
-          VALUES ($1, $2, 1, 1, 1, false, NULL)
+          VALUES ($1, $2, $3, 1, 1, false, NULL)
           ON CONFLICT (guild_id, user_id)
           DO UPDATE SET 
-            points = trivia_scores.points + 1,
+            points = trivia_scores.points + $3,
             current_streak = trivia_scores.current_streak + 1,
             max_streak = GREATEST(trivia_scores.max_streak, trivia_scores.current_streak + 1)
-        `, [message.guild.id, interaction.user.id]);
+        `, [message.guild.id, interaction.user.id, pointsValue]);
 
         const res = await pool.query(
           "SELECT points, current_streak, max_streak, congratulated, last_medal FROM trivia_scores WHERE guild_id = $1 AND user_id = $2",
@@ -112,7 +122,7 @@ module.exports = {
         );
         const { points, current_streak, max_streak, congratulated, last_medal } = res.rows[0];
 
-        await interaction.reply(`✅ ¡Correcto ${interaction.user.username}! Ahora tienes **${points} puntos** (racha: ${current_streak})`);
+        await interaction.reply(`✅ ¡Correcto ${interaction.user.username}! Ganaste **${pointsValue} puntos**. Ahora tienes **${points} puntos** (racha: ${current_streak})`);
 
         // 🎉 Felicitación automática si entra al top 3 o alcanza top 1
         const rankRes = await pool.query(
