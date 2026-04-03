@@ -471,99 +471,99 @@ client.on(Events.MessageCreate, async (message) => {
     const key = `${message.guild.id}-${message.author.id}`;
    
     //--- AntiSpam ---
-   if (!spamTracker.has(key)) {
-    spamTracker.set(key, { timestamps: [], suspension: null, longMsgCount: 0 });
-}
-
-const data = spamTracker.get(key);
-const now = Date.now();
-
-// Filtrar últimos 10s
-data.timestamps = data.timestamps.filter(ts => now - ts < 10000);
-data.timestamps.push(now);
-
-// Contar palabras del mensaje
-const wordCount = message.content.trim().split(/\s+/).length;
-
-const res = await pool.query(
-    `SELECT logChannelId, spamThreshold, timeoutDuration FROM moderation_settings WHERE guildId = $1`,
-    [message.guild.id]
-);
-
-if (res.rowCount > 0) {
-    const { logchannelid, spamthreshold, timeoutduration } = res.rows[0];
-
-    // --- Detector 1: spam por frecuencia (tu lógica original) ---
-    if (data.timestamps.length >= spamthreshold) {
-        try {
-            await message.member.timeout(timeoutduration * 60 * 1000, "Spam detectado (frecuencia)");
-            // ... tus embeds y logs originales ...
-            spamTracker.set(key, { timestamps: [], suspension: data.suspension, longMsgCount: 0 });
-        } catch (err) {
-            console.error("❌ Error aplicando timeout:", err);
-        }
+    if (!spamTracker.has(key)) {
+        spamTracker.set(key, { timestamps: [], suspension: null, longMsgCount: 0 });
     }
 
-    // --- Detector 2: spam por longitud (≥50 palabras, mínimo 3 mensajes en 10s) ---
-    if (wordCount >= 50) {
-        data.longMsgCount += 1;
+    const data = spamTracker.get(key);
+    const now = Date.now();
 
-        if (data.longMsgCount >= 3) {
+    // Filtrar últimos 10s
+    data.timestamps = data.timestamps.filter(ts => now - ts < 10000);
+    data.timestamps.push(now);
+
+    // Contar palabras del mensaje
+    const wordCount = message.content.trim().split(/\s+/).length;
+
+    const res = await pool.query(
+        `SELECT logChannelId, spamThreshold, timeoutDuration FROM moderation_settings WHERE guildId = $1`,
+        [message.guild.id]
+    );
+
+    if (res.rowCount > 0) {
+        const { logchannelid, spamthreshold, timeoutduration } = res.rows[0];
+
+        // --- Detector 1: spam por frecuencia (tu lógica original) ---
+        if (data.timestamps.length >= spamthreshold) {
             try {
-                // Suspensión progresiva
-                let suspensionMs;
-                if (data.suspension) {
-                    suspensionMs = data.suspension * 2;
-                } else {
-                    suspensionMs = timeoutduration * 60 * 1000; // primera suspensión
-                }
+                await message.member.timeout(timeoutduration * 60 * 1000, "Spam detectado (frecuencia)");
+                // ... tus embeds y logs originales ...
+                spamTracker.set(key, { timestamps: [], suspension: data.suspension, longMsgCount: 0 });
+            } catch (err) {
+                console.error("❌ Error aplicando timeout:", err);
+            }
+        }
 
-                await message.member.timeout(suspensionMs, "Spam detectado (mensajes largos)");
+        // --- Detector 2: spam por longitud (≥50 palabras, mínimo 3 mensajes en 10s) ---
+        if (wordCount >= 50) {
+            data.longMsgCount += 1;
 
-                await message.channel.send({
-                    embeds: [{
-                        color: 0xf39c12,
-                        title: "⏳ Usuario suspendido",
-                        description: `${message.author} fue suspendido automáticamente por **mensajes largos repetidos**.`,
-                        fields: [
-                            { name: "Duración", value: `${Math.floor(suspensionMs / 1000)} segundos`, inline: true },
-                            { name: "Mensajes largos en 10s", value: `${data.longMsgCount}`, inline: true },
-                            { name: "Palabras último mensaje", value: `${wordCount}`, inline: true }
-                        ],
-                        footer: { text: "Sistema de moderación automática" },
-                        timestamp: new Date()
-                    }]
-                });
+            if (data.longMsgCount >= 3) {
+                try {
+                    // Suspensión progresiva
+                    let suspensionMs;
+                    if (data.suspension) {
+                        suspensionMs = data.suspension * 2;
+                    } else {
+                        suspensionMs = timeoutduration * 60 * 1000; // primera suspensión
+                    }
 
-                const logChannel = message.guild.channels.cache.get(logchannelid);
-                if (logChannel) {
-                    logChannel.send({
+                    await message.member.timeout(suspensionMs, "Spam detectado (mensajes largos)");
+
+                    await message.channel.send({
                         embeds: [{
-                            color: 0xe74c3c,
-                            title: "🚨 Moderación: Mensajes largos detectados",
-                            description: `${message.author.tag} fue suspendido.`,
+                            color: 0xf39c12,
+                            title: "⏳ Usuario suspendido",
+                            description: `${message.author} fue suspendido automáticamente por **mensajes largos repetidos**.`,
                             fields: [
                                 { name: "Duración", value: `${Math.floor(suspensionMs / 1000)} segundos`, inline: true },
                                 { name: "Mensajes largos en 10s", value: `${data.longMsgCount}`, inline: true },
                                 { name: "Palabras último mensaje", value: `${wordCount}`, inline: true }
                             ],
+                            footer: { text: "Sistema de moderación automática" },
                             timestamp: new Date()
                         }]
                     });
+
+                    const logChannel = message.guild.channels.cache.get(logchannelid);
+                    if (logChannel) {
+                        logChannel.send({
+                            embeds: [{
+                                color: 0xe74c3c,
+                                title: "🚨 Moderación: Mensajes largos detectados",
+                                description: `${message.author.tag} fue suspendido.`,
+                                fields: [
+                                    { name: "Duración", value: `${Math.floor(suspensionMs / 1000)} segundos`, inline: true },
+                                    { name: "Mensajes largos en 10s", value: `${data.longMsgCount}`, inline: true },
+                                    { name: "Palabras último mensaje", value: `${wordCount}`, inline: true }
+                                ],
+                                timestamp: new Date()
+                            }]
+                        });
+                    }
+
+                    // Resetear contador de mensajes largos y guardar suspensión
+                    spamTracker.set(key, { timestamps: data.timestamps, suspension: suspensionMs, longMsgCount: 0 });
+
+                } catch (err) {
+                    console.error("❌ Error aplicando timeout:", err);
                 }
-
-                // Resetear contador de mensajes largos y guardar suspensión
-                spamTracker.set(key, { timestamps: data.timestamps, suspension: suspensionMs, longMsgCount: 0 });
-
-            } catch (err) {
-                console.error("❌ Error aplicando timeout:", err);
+            } else {
+                // Actualizar sin sanción todavía
+                spamTracker.set(key, data);
             }
-        } else {
-            // Actualizar sin sanción todavía
-            spamTracker.set(key, data);
         }
     }
-}
 
 
     if (!message.content.startsWith(prefix)) return;
@@ -611,56 +611,92 @@ if (res.rowCount > 0) {
 
      if (command === "trivia") return trivia.execute(message, args);
 
-if (command === "ranking") {
-  const res = await pool.query(
-    "SELECT user_id, points FROM trivia_scores WHERE guild_id = $1 ORDER BY points DESC LIMIT 10",
-    [message.guild.id]
-  );
+    if (command === "ranking") {
+    const res = await pool.query(
+        "SELECT user_id, points, max_streak FROM trivia_scores WHERE guild_id = $1 ORDER BY points DESC LIMIT 10",
+        [message.guild.id]
+    );
 
-  if (res.rowCount === 0) {
-    return message.channel.send("📉 Aún no hay puntuaciones en este servidor.");
-  }
-
-  // Usamos fetch para obtener el nombre de cada usuario
-  let ranking = await Promise.all(res.rows.map(async (row, i) => {
-    let username;
-    try {
-      const member = await message.guild.members.fetch(row.user_id);
-      username = member.displayName; // muestra apodo si existe
-    } catch {
-      username = row.user_id; // fallback si no se puede obtener
+    if (res.rowCount === 0) {
+        return message.channel.send("📉 Aún no hay puntuaciones en este servidor.");
     }
-    return `**${i + 1}.** ${username} — ${row.points} puntos`;
-  }));
 
-  const embed = new EmbedBuilder()
-    .setTitle("🏆 Ranking Trivia")
-    .setDescription(ranking.join("\n"))
-    .setColor(0xf1c40f);
+    let ranking = await Promise.all(res.rows.map(async (row, i) => {
+        let username;
+        try {
+        const member = await message.guild.members.fetch(row.user_id);
+        username = member.displayName;
+        } catch {
+        username = row.user_id;
+        }
 
-  await message.channel.send({ embeds: [embed] });
-}
+        // 🥇🥈🥉 según posición
+        let medal = "";
+        if (i === 0) medal = "🥇";
+        else if (i === 1) medal = "🥈";
+        else if (i === 2) medal = "🥉";
 
+        let streakInfo = row.max_streak > 0 ? ` | 🔥 Racha máxima: ${row.max_streak}` : "";
+        return `${medal} **${i + 1}.** ${username} — ${row.points} puntos${streakInfo}`;
+    }));
 
-if (command === "puntos") {
-  const res = await pool.query(
-    "SELECT points FROM trivia_scores WHERE guild_id = $1 AND user_id = $2",
-    [message.guild.id, message.author.id]
-  );
+    // 🎨 Colores según top 3
+    let color = 0xf1c40f; // default oro
+    if (res.rowCount > 1) color = 0xc0c0c0; // plata si hay al menos 2
+    if (res.rowCount > 2) color = 0xcd7f32; // bronce si hay al menos 3
 
-  if (res.rowCount === 0) {
-    return message.reply("📉 Aún no tienes puntos en este servidor. ¡Juega con `?trivia` para empezar!");
-  }
+    const embed = new EmbedBuilder()
+        .setTitle("🏆 Ranking Trivia")
+        .setDescription(ranking.join("\n"))
+        .setColor(color);
 
-  const points = res.rows[0].points;
+    await message.channel.send({ embeds: [embed] });
+    }
+    if (command === "puntos" || command === "perfil") {
+    let targetUser = message.mentions.users.first() || message.author;
 
-  const embed = new EmbedBuilder()
-    .setTitle("🎯 Tus puntos de trivia")
-    .setDescription(`👤 ${message.author}\n🏆 Puntos acumulados: **${points}**`)
-    .setColor(0x1abc9c);
+    const res = await pool.query(
+        "SELECT points, current_streak, max_streak FROM trivia_scores WHERE guild_id = $1 AND user_id = $2",
+        [message.guild.id, targetUser.id]
+    );
 
-  return message.channel.send({ embeds: [embed] });
-}
+    if (res.rowCount === 0) {
+        return message.channel.send(`📉 ${targetUser.username} aún no tiene puntuaciones registradas.`);
+    }
+
+    const { points, current_streak, max_streak } = res.rows[0];
+
+    // 🔎 Verificar si el usuario está en el top 3
+    const rankRes = await pool.query(
+        "SELECT user_id FROM trivia_scores WHERE guild_id = $1 ORDER BY points DESC LIMIT 3",
+        [message.guild.id]
+    );
+    const top3 = rankRes.rows.map(r => r.user_id);
+
+    let medal = "";
+    let color = 0x2ecc71; // verde por defecto
+    if (top3[0] === targetUser.id) {
+        medal = "🥇";
+        color = 0xf1c40f; // dorado
+    } else if (top3[1] === targetUser.id) {
+        medal = "🥈";
+        color = 0xc0c0c0; // plateado
+    } else if (top3[2] === targetUser.id) {
+        medal = "🥉";
+        color = 0xcd7f32; // bronce
+    }
+
+    const embed = new EmbedBuilder()
+        .setTitle(`📊 Perfil de Trivia — ${targetUser.username} ${medal}`)
+        .setColor(color)
+        .addFields(
+        { name: "Puntos", value: `${points}`, inline: true },
+        { name: "🔥 Racha actual", value: current_streak > 0 ? `${current_streak}` : "—", inline: true },
+        { name: "🏆 Racha máxima", value: max_streak > 0 ? `${max_streak}` : "—", inline: true }
+        );
+
+    await message.channel.send({ embeds: [embed] });
+    }
 
     // ?userinfo → Muestra información de registro
     if (command === "userinfo") {
@@ -822,8 +858,6 @@ if (command === "puntos") {
         )
         .setFooter({ text: "Página 6/6" })
 ];
-
-
 
         let page = 0;
         const row = {
