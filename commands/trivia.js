@@ -1,6 +1,5 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
-
-// Importar todas las categorías
+const pool = require("../index"); // tu conexión a Postgres
 const artQuestions = require("./questions/questionsart");
 const chemistryQuestions = require("./questions/questionschemistry");
 const cinemaQuestions = require("./questions/questionscinema");
@@ -9,32 +8,29 @@ const historyQuestions = require("./questions/questionshistory");
 const mathQuestions = require("./questions/questionsmath");
 const musicQuestions = require("./questions/questionsmusic");
 const physicsQuestions = require("./questions/questionsphysics");
-// Pool general
+
 const allQuestions = [
-  ...historyQuestions,
-  ...chemistryQuestions,
-  ...physicsQuestions,
-  ...mathQuestions,
   ...artQuestions,
-  ...musicQuestions,
+  ...chemistryQuestions,
   ...cinemaQuestions,
-  ...generalQuestions
+  ...generalQuestions,
+  ...historyQuestions,
+  ...mathQuestions,
+  ...musicQuestions,
+  ...physicsQuestions
 ];
 
 module.exports = {
   name: "trivia",
-  description: "Responde preguntas de trivia",
-  async execute(message, args) {
-    // Seleccionar pregunta aleatoria
+  description: "Pregunta de trivia aleatoria",
+  async execute(message) {
     const q = allQuestions[Math.floor(Math.random() * allQuestions.length)];
 
-    // Embed con la pregunta
     const embed = new EmbedBuilder()
       .setTitle(`🎲 Trivia - ${q.category}`)
       .setDescription(q.question)
       .setColor(0x3498db);
 
-    // Crear botones para cada opción
     const row = new ActionRowBuilder().addComponents(
       q.options.map((opt, i) =>
         new ButtonBuilder()
@@ -44,29 +40,71 @@ module.exports = {
       )
     );
 
-    // Enviar embed con botones
     const triviaMessage = await message.channel.send({ embeds: [embed], components: [row] });
 
-    // Colector de interacciones (20 segundos)
     const collector = triviaMessage.createMessageComponentCollector({ time: 20000 });
 
     collector.on("collect", async interaction => {
-      if (interaction.user.id !== message.author.id) {
-        return interaction.reply({ content: "❌ Solo quien inició la trivia puede responder.", ephemeral: true });
+      const choice = parseInt(interaction.customId.split("_")[1]);
+
+      // deshabilitar botones y colorear según resultado
+      const updatedRow = new ActionRowBuilder().addComponents(
+        q.options.map((opt, i) => {
+          let style = ButtonStyle.Secondary; // gris por defecto
+          if (i === q.answer) style = ButtonStyle.Success; // verde la correcta
+          if (i === choice && choice !== q.answer) style = ButtonStyle.Danger; // rojo si falló
+          if (i === choice && choice === q.answer) style = ButtonStyle.Success; // verde si acertó
+
+          return new ButtonBuilder()
+            .setCustomId(`option_${i}`)
+            .setLabel(opt)
+            .setStyle(style)
+            .setDisabled(true);
+        })
+      );
+
+      if (choice === q.answer) {
+        // Guardar puntuación en Postgres
+        await pool.query(`
+          INSERT INTO trivia_scores (guild_id, user_id, points)
+          VALUES ($1, $2, 1)
+          ON CONFLICT (guild_id, user_id)
+          DO UPDATE SET points = trivia_scores.points + 1
+        `, [message.guild.id, interaction.user.id]);
+
+        const res = await pool.query(
+          "SELECT points FROM trivia_scores WHERE guild_id = $1 AND user_id = $2",
+          [message.guild.id, interaction.user.id]
+        );
+        const points = res.rows[0].points;
+
+        await interaction.reply(`✅ ¡Correcto ${interaction.user.username}! Ahora tienes **${points} puntos**`);
+      } else {
+        await interaction.reply(`❌ Incorrecto ${interaction.user.username}. La respuesta era **${q.options[q.answer]}**`);
       }
 
-      const choice = parseInt(interaction.customId.split("_")[1]);
-      if (choice === q.answer) {
-        await interaction.reply("✅ ¡Correcto!");
-      } else {
-        await interaction.reply(`❌ Incorrecto. La respuesta era **${q.options[q.answer]}**`);
-      }
+      await triviaMessage.edit({ components: [updatedRow] });
       collector.stop();
     });
 
     collector.on("end", async collected => {
       if (collected.size === 0) {
-        await message.channel.send("⏳ Se acabó el tiempo, nadie respondió.");
+        // Nadie respondió → mostrar la respuesta correcta
+        const updatedRow = new ActionRowBuilder().addComponents(
+          q.options.map((opt, i) => {
+            let style = ButtonStyle.Secondary;
+            if (i === q.answer) style = ButtonStyle.Success; // marcar la correcta en verde
+
+            return new ButtonBuilder()
+              .setCustomId(`option_${i}`)
+              .setLabel(opt)
+              .setStyle(style)
+              .setDisabled(true);
+          })
+        );
+
+        await triviaMessage.edit({ components: [updatedRow] });
+        await message.channel.send(`⏳ Se acabó el tiempo. La respuesta correcta era **${q.options[q.answer]}**`);
       }
     });
   }
