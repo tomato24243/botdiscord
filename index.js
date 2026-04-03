@@ -621,19 +621,26 @@ if (command === "ranking") {
     return message.channel.send("📉 Aún no hay puntuaciones en este servidor.");
   }
 
-  let ranking = res.rows.map((row, i) => {
-    const user = message.guild.members.cache.get(row.user_id);
-    const username = user ? user.displayName : row.user_id;
+  // Usamos fetch para obtener el nombre de cada usuario
+  let ranking = await Promise.all(res.rows.map(async (row, i) => {
+    let username;
+    try {
+      const member = await message.guild.members.fetch(row.user_id);
+      username = member.displayName; // muestra apodo si existe
+    } catch {
+      username = row.user_id; // fallback si no se puede obtener
+    }
     return `**${i + 1}.** ${username} — ${row.points} puntos`;
-  }).join("\n");
+  }));
 
   const embed = new EmbedBuilder()
     .setTitle("🏆 Ranking Trivia")
-    .setDescription(ranking)
+    .setDescription(ranking.join("\n"))
     .setColor(0xf1c40f);
 
   await message.channel.send({ embeds: [embed] });
 }
+
 
 if (command === "puntos") {
   const res = await pool.query(

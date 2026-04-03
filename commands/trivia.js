@@ -48,9 +48,8 @@ module.exports = {
     collector.on("collect", async interaction => {
       // 🔒 Solo permite al autor del comando responder
       if (interaction.user.id !== message.author.id) {
-        return interaction.reply({ content: "⚠️ Solo quien lanzó la trivia puede responder.", ephemeral: true });
+        return interaction.reply("⚠️ Solo quien lanzó la trivia puede responder.");
       }
-
       const choice = parseInt(interaction.customId.split("_")[1]);
 
       // deshabilitar botones y colorear según resultado
