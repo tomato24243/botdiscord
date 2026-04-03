@@ -1,5 +1,5 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
-const pool = require("../db"); // tu conexión a Postgres
+const pool = require("../index"); // tu conexión a Postgres
 
 const artQuestions = require("./questions/questionsart");
 const chemistryQuestions = require("./questions/questionschemistry");
