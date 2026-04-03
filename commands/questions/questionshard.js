@@ -1,9 +1,63 @@
 module.exports = [
   {
     category: "Historia",
-    question: "¿En qué año se firmó el Tratado de Tordesillas?",
-    options: ["1492", "1494", "1500", "1512"],
+    question: "¿En qué año cayó Constantinopla en manos del Imperio Otomano?",
+    options: ["1453", "1492", "1415", "1501"],
+    answer: 0
+  },
+  {
+    category: "Ciencia",
+    question: "¿Cuál es el elemento más abundante en la corteza terrestre?",
+    options: ["Oxígeno", "Silicio", "Hierro", "Aluminio"],
+    answer: 0
+  },
+  {
+    category: "Arte",
+    question: "¿Quién pintó 'La Escuela de Atenas'?",
+    options: ["Leonardo da Vinci", "Rafael", "Miguel Ángel", "Botticelli"],
     answer: 1
+  },
+  {
+    category: "Literatura",
+    question: "¿Qué novela comienza con la frase 'Llamadme Ismael'?",
+    options: ["Moby Dick", "Ulises", "Don Quijote", "La Odisea"],
+    answer: 0
+  },
+  {
+    category: "Matemáticas",
+    question: "¿Cuál es el valor aproximado de la constante de Euler (γ)?",
+    options: ["0.577", "1.618", "2.718", "3.141"],
+    answer: 0
+  },
+  {
+    category: "Física",
+    question: "¿Qué científico formuló la teoría de la relatividad general?",
+    options: ["Newton", "Einstein", "Planck", "Bohr"],
+    answer: 1
+  },
+  {
+    category: "Geografía",
+    question: "¿Cuál es el lago más profundo del mundo?",
+    options: ["Tanganica", "Baikal", "Victoria", "Superior"],
+    answer: 1
+  },
+  {
+    category: "Cine",
+    question: "¿Quién dirigió la película 'El Séptimo Sello'?",
+    options: ["Federico Fellini", "Ingmar Bergman", "Akira Kurosawa", "Luis Buñuel"],
+    answer: 1
+  },
+  {
+    category: "Música",
+    question: "¿Qué compositor escribió la ópera 'Tristán e Isolda'?",
+    options: ["Verdi", "Wagner", "Mozart", "Puccini"],
+    answer: 1
+  },
+  {
+    category: "Química",
+    question: "¿Cuál es el único metal líquido a temperatura ambiente?",
+    options: ["Mercurio", "Galio", "Cesio", "Plomo"],
+    answer: 0
   },
   {
     category: "Historia",
@@ -12,105 +66,39 @@ module.exports = [
     answer: 1
   },
   {
-    category: "Física",
-    question: "¿Cuál es el valor aproximado de la constante de Planck?",
-    options: ["6.63 × 10⁻³⁴ J·s", "3.14 × 10⁻² J·s", "9.81 × 10⁻³ J·s", "1.60 × 10⁻¹⁹ J·s"],
+    category: "Astronomía",
+    question: "¿Cuál es la galaxia más cercana a la Vía Láctea?",
+    options: ["Andrómeda", "Sagitario", "Triángulo", "Canis Major"],
     answer: 0
   },
   {
-    category: "Química",
-    question: "¿Cuál es la fórmula química del ácido sulfúrico?",
-    options: ["HCl", "H₂SO₄", "HNO₃", "CH₃COOH"],
+    category: "Filosofía",
+    question: "¿Quién escribió 'La República'?",
+    options: ["Aristóteles", "Platón", "Sócrates", "Epicuro"],
     answer: 1
   },
   {
-    category: "Matemáticas",
-    question: "¿Quién formuló el último teorema que fue demostrado por Andrew Wiles?",
-    options: ["Euler", "Fermat", "Gauss", "Descartes"],
-    answer: 1
-  },
-  {
-    category: "Literatura",
-    question: "¿Quién escribió 'La montaña mágica'?",
-    options: ["Thomas Mann", "Franz Kafka", "Hermann Hesse", "Robert Musil"],
+    category: "Deportes",
+    question: "¿En qué año se celebraron los primeros Juegos Olímpicos modernos?",
+    options: ["1896", "1900", "1888", "1924"],
     answer: 0
   },
   {
-    category: "Literatura",
-    question: "¿Qué obra pertenece a Miguel de Unamuno?",
-    options: ["Niebla", "La Regenta", "Fortunata y Jacinta", "Pepita Jiménez"],
+    category: "Tecnología",
+    question: "¿Qué significa 'HTTP'?",
+    options: ["HyperText Transfer Protocol", "High Tech Transfer Program", "Hyperlink Text Processing", "Host Transfer Protocol"],
     answer: 0
   },
   {
-    category: "Arte",
-    question: "¿Quién pintó 'La escuela de Atenas'?",
-    options: ["Leonardo da Vinci", "Rafael", "Miguel Ángel", "Botticelli"],
-    answer: 1
-  },
-  {
-    category: "Arte",
-    question: "¿En qué museo se encuentra 'Las Meninas' de Velázquez?",
-    options: ["Museo del Louvre", "Museo del Prado", "National Gallery", "Uffizi"],
-    answer: 1
-  },
-  {
-    category: "Música",
-    question: "¿Quién compuso la ópera 'La Traviata'?",
-    options: ["Puccini", "Verdi", "Mozart", "Rossini"],
-    answer: 1
-  },
-  {
-    category: "Música",
-    question: "¿Qué compositor creó la 'Sinfonía del Nuevo Mundo'?",
-    options: ["Dvořák", "Beethoven", "Mahler", "Tchaikovsky"],
+    category: "Historia",
+    question: "¿Qué tratado puso fin a la Primera Guerra Mundial?",
+    options: ["Versalles", "Tordesillas", "París", "Ginebra"],
     answer: 0
   },
   {
-    category: "Geografía",
-    question: "¿Cuál es la capital de Bután?",
-    options: ["Katmandú", "Thimphu", "Ulaanbaatar", "Dhaka"],
-    answer: 1
-  },
-  {
-    category: "Geografía",
-    question: "¿Cuál es el río más largo de África?",
-    options: ["Nilo", "Congo", "Níger", "Zambeze"],
-    answer: 0
-  },
-  {
-    category: "Cultura General",
-    question: "¿Quién recibió el Premio Nobel de Física en 1921?",
-    options: ["Marie Curie", "Albert Einstein", "Max Planck", "Niels Bohr"],
-    answer: 1
-  },
-  {
-    category: "Cultura General",
+    category: "Cultura",
     question: "¿Cuál es el idioma oficial de Etiopía?",
-    options: ["Amhárico", "Suajili", "Árabe", "Somalí"],
-    answer: 0
-  },
-  {
-    category: "Historia",
-    question: "¿Qué dinastía gobernaba China durante la construcción de la Gran Muralla?",
-    options: ["Han", "Qin", "Tang", "Ming"],
-    answer: 1
-  },
-  {
-    category: "Historia",
-    question: "¿Quién fue el último faraón de Egipto?",
-    options: ["Tutankamón", "Cleopatra VII", "Ramsés II", "Akhenatón"],
-    answer: 1
-  },
-  {
-    category: "Física",
-    question: "¿Qué científico formuló las leyes del movimiento?",
-    options: ["Galileo Galilei", "Isaac Newton", "Johannes Kepler", "James Clerk Maxwell"],
-    answer: 1
-  },
-  {
-    category: "Química",
-    question: "¿Qué elemento tiene el símbolo 'W'?",
-    options: ["Wolframio", "Vanadio", "Renio", "Tungsteno"],
+    options: ["Amhárico", "Somalí", "Árabe", "Tigrinya"],
     answer: 0
   },
   {
@@ -120,33 +108,45 @@ module.exports = [
     answer: 0
   },
   {
-    category: "Literatura",
-    question: "¿Quién escribió 'Ulises'?",
-    options: ["James Joyce", "Virginia Woolf", "William Faulkner", "Marcel Proust"],
-    answer: 0
+    category: "Química",
+    question: "¿Cuál es el gas más abundante en la atmósfera terrestre?",
+    options: ["Oxígeno", "Nitrógeno", "Argón", "Dióxido de carbono"],
+    answer: 1
   },
   {
     category: "Arte",
-    question: "¿Qué artista es conocido por sus 'Latas de sopa Campbell'?",
-    options: ["Andy Warhol", "Roy Lichtenstein", "Jackson Pollock", "Mark Rothko"],
+    question: "¿Quién pintó 'Las Meninas'?",
+    options: ["Velázquez", "Goya", "El Greco", "Murillo"],
     answer: 0
+  },
+  {
+    category: "Historia",
+    question: "¿Qué civilización construyó Machu Picchu?",
+    options: ["Azteca", "Maya", "Inca", "Olmeca"],
+    answer: 2
+  },
+  {
+    category: "Ciencia",
+    question: "¿Cuál es la partícula subatómica con carga negativa?",
+    options: ["Protón", "Neutrón", "Electrón", "Quark"],
+    answer: 2
+  },
+  {
+    category: "Literatura",
+    question: "¿Quién escribió 'Cien años de soledad'?",
+    options: ["Mario Vargas Llosa", "Gabriel García Márquez", "Isabel Allende", "Octavio Paz"],
+    answer: 1
+  },
+  {
+    category: "Astronomía",
+    question: "¿Cuál es el planeta más grande del sistema solar?",
+    options: ["Saturno", "Júpiter", "Urano", "Neptuno"],
+    answer: 1
   },
   {
     category: "Música",
-    question: "¿Qué compositor es conocido por la 'Sinfonía Fantástica'?",
-    options: ["Hector Berlioz", "Franz Liszt", "Johannes Brahms", "Richard Wagner"],
-    answer: 0
-  },
-  {
-    category: "Geografía",
-    question: "¿Cuál es la montaña más alta fuera de Asia?",
-    options: ["Aconcagua", "Denali", "Kilimanjaro", "Elbrus"],
-    answer: 0
-  },
-  {
-    category: "Cultura General",
-    question: "¿Qué científico descubrió la penicilina?",
-    options: ["Alexander Fleming", "Louis Pasteur", "Robert Koch", "Joseph Lister"],
+    question: "¿Qué compositor es conocido como 'El padre de la sinfonía'?",
+    options: ["Haydn", "Beethoven", "Bach", "Mozart"],
     answer: 0
   }
 ];

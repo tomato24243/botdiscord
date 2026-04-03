@@ -38,25 +38,37 @@ function shuffleOptions(question) {
   };
 }
 
+// 🚫 Bloqueo de trivia activa por usuario
+const activeTriviaUsers = new Set();
+
 module.exports = {
   name: "trivia",
   description: "Pregunta de trivia aleatoria",
   async execute(message) {
-    // Obtener racha actual del usuario
+    // Bloqueo: si ya tiene trivia activa
+    if (activeTriviaUsers.has(message.author.id)) {
+      return message.reply("⚠️ Ya tienes una trivia activa. Responde o espera a que termine antes de iniciar otra.");
+    }
+    activeTriviaUsers.add(message.author.id);
+
+    // Obtener racha actual
     const streakRes = await pool.query(
       "SELECT current_streak FROM trivia_scores WHERE guild_id = $1 AND user_id = $2",
       [message.guild.id, message.author.id]
     );
     let streak = streakRes.rows.length > 0 ? streakRes.rows[0].current_streak : 0;
 
-    // Selección de pregunta según racha
+    // Selección de pregunta según múltiplos de 5
     let q;
     let pointsValue = 1;
     let difficultyNote = "";
-    if (streak >= 5) {
+    let timeLimit = 20000; // 20 segundos normal
+
+    if (streak > 0 && streak % 5 === 0) {
       q = hardQuestions[Math.floor(Math.random() * hardQuestions.length)];
       pointsValue = 2;
       difficultyNote = `⚡ Pregunta difícil — vale **${pointsValue} puntos**`;
+      timeLimit = 10000; // 10 segundos difícil
     } else {
       q = allQuestions[Math.floor(Math.random() * allQuestions.length)];
     }
@@ -66,8 +78,8 @@ module.exports = {
 
     const embed = new EmbedBuilder()
       .setTitle(`🎲 Trivia - ${q.category}`)
-      .setDescription(`${q.question}\n\n${streakText}\n${difficultyNote}`)
-      .setColor(streak >= 5 ? 0xe74c3c : 0x3498db); // rojo para difíciles, azul para normales
+      .setDescription(`${q.question}\n\n${streakText}\n${difficultyNote}\n⏳ Tiempo límite: ${timeLimit/1000} segundos`)
+      .setColor(pointsValue === 2 ? 0xe74c3c : 0x3498db);
 
     const row = new ActionRowBuilder().addComponents(
       q.options.map((opt, i) =>
@@ -80,7 +92,7 @@ module.exports = {
 
     const triviaMessage = await message.reply({ embeds: [embed], components: [row] });
 
-    const collector = triviaMessage.createMessageComponentCollector({ time: 20000 });
+    const collector = triviaMessage.createMessageComponentCollector({ time: timeLimit });
 
     collector.on("collect", async interaction => {
       if (interaction.user.id !== message.author.id) {
@@ -117,48 +129,12 @@ module.exports = {
         `, [message.guild.id, interaction.user.id, pointsValue]);
 
         const res = await pool.query(
-          "SELECT points, current_streak, max_streak, congratulated, last_medal FROM trivia_scores WHERE guild_id = $1 AND user_id = $2",
+          "SELECT points, current_streak, max_streak FROM trivia_scores WHERE guild_id = $1 AND user_id = $2",
           [message.guild.id, interaction.user.id]
         );
-        const { points, current_streak, max_streak, congratulated, last_medal } = res.rows[0];
+        const { points, current_streak, max_streak } = res.rows[0];
 
         await interaction.reply(`✅ ¡Correcto ${interaction.user.username}! Ganaste **${pointsValue} puntos**. Ahora tienes **${points} puntos** (racha: ${current_streak})`);
-
-        // 🎉 Felicitación automática si entra al top 3 o alcanza top 1
-        const rankRes = await pool.query(
-          "SELECT user_id FROM trivia_scores WHERE guild_id = $1 ORDER BY points DESC LIMIT 3",
-          [message.guild.id]
-        );
-        const top3 = rankRes.rows.map(r => r.user_id);
-
-        let medal = "";
-        let color = 0x2ecc71;
-        if (top3[0] === interaction.user.id) {
-          medal = "🥇";
-          color = 0xf1c40f;
-        } else if (top3[1] === interaction.user.id) {
-          medal = "🥈";
-          color = 0xc0c0c0;
-        } else if (top3[2] === interaction.user.id) {
-          medal = "🥉";
-          color = 0xcd7f32;
-        }
-
-        if (medal !== "") {
-          if (!congratulated || (last_medal !== "🥇" && medal === "🥇")) {
-            await pool.query(
-              "UPDATE trivia_scores SET congratulated = true, last_medal = $3 WHERE guild_id = $1 AND user_id = $2",
-              [message.guild.id, interaction.user.id, medal]
-            );
-
-            const congratsEmbed = new EmbedBuilder()
-              .setTitle("🎉 ¡Nuevo logro en la Trivia!")
-              .setDescription(`${interaction.user.username} ha alcanzado el puesto ${medal === "🥇" ? "#1 🥇" : "Top 3 " + medal}\n🔥 Racha máxima actual: ${max_streak}`)
-              .setColor(color);
-
-            await message.channel.send({ embeds: [congratsEmbed] });
-          }
-        }
 
       } else {
         // ❌ Incorrecto → restar puntos y reiniciar racha
@@ -183,6 +159,9 @@ module.exports = {
     });
 
     collector.on("end", async collected => {
+      // ✅ Liberar al usuario al terminar
+      activeTriviaUsers.delete(message.author.id);
+
       if (collected.size === 0) {
         const updatedRow = new ActionRowBuilder().addComponents(
           q.options.map((opt, i) => {
