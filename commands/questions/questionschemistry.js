@@ -134,7 +134,7 @@ const chemistryQuestions = [
   },
   {
     category: "Química",
-    question: "¿Qué compuesto se forma al reaccionar hidrógeno con oxígeno?",
+    question: "¿Qué compuesto se forma al reaccionar hidrógeno con 2 atomos de oxígeno?",
     options: ["H2O", "H2O2", "HOCl", "O3"],
     answer: 0
   },

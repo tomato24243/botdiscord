@@ -94,7 +94,7 @@ const cinemaQuestions = [
     category: "Cine",
     question: "¿Qué película ganó el Oscar a Mejor Película en 1998?",
     options: ["Titanic", "Saving Private Ryan", "Shakespeare in Love", "The Thin Red Line"],
-    answer: 2
+    answer: 0
   },
   {
     category: "Cine",

@@ -1,5 +1,6 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
-const pool = require("../index"); // ahora sí será tu conexión a Postgres
+const pool = require("../db"); // tu conexión a Postgres
+
 const artQuestions = require("./questions/questionsart");
 const chemistryQuestions = require("./questions/questionschemistry");
 const cinemaQuestions = require("./questions/questionscinema");
@@ -45,6 +46,11 @@ module.exports = {
     const collector = triviaMessage.createMessageComponentCollector({ time: 20000 });
 
     collector.on("collect", async interaction => {
+      // 🔒 Solo permite al autor del comando responder
+      if (interaction.user.id !== message.author.id) {
+        return interaction.reply({ content: "⚠️ Solo quien lanzó la trivia puede responder.", ephemeral: true });
+      }
+
       const choice = parseInt(interaction.customId.split("_")[1]);
 
       // deshabilitar botones y colorear según resultado
