@@ -25,9 +25,7 @@ const pool = new Pool({
         `);
 
         await pool.query(`
-            DROP TABLE IF EXISTS roles;
-
-            CREATE TABLE roles (
+            CREATE TABLE IF NOT EXISTS roles (
                 id SERIAL PRIMARY KEY,
                 guildId TEXT NOT NULL,
                 command TEXT NOT NULL,
@@ -457,65 +455,89 @@ client.on(Events.MessageCreate, async (message) => {
     const now = Date.now();
    
     //--- AntiSpam ---
-    if (!spamTracker.has(key)) {
-        spamTracker.set(key, []);
-    }
-
-    const timestamps = spamTracker.get(key).filter(ts => now - ts < 10000); // últimos 10s
-    timestamps.push(now);
-    spamTracker.set(key, timestamps);
-
-    const res = await pool.query(
-        `SELECT logChannelId, spamThreshold, timeoutDuration FROM moderation_settings WHERE guildId = $1`,
-        [message.guild.id]
-    );
-
-    if (res.rowCount > 0) {
-        const { logchannelid, spamthreshold, timeoutduration } = res.rows[0];
-
-        if (timestamps.length >= spamthreshold) {
-            try {
-    await message.member.timeout(timeoutduration * 60 * 1000, "Spam detectado");
-
-    // Aviso público en el canal donde ocurrió
-    await message.channel.send({
-        embeds: [{
-            color: 0xf39c12,
-            title: "⏳ Usuario suspendido",
-            description: `${message.author} fue suspendido automáticamente por **spam**.`,
-            fields: [
-                { name: "Duración", value: `${timeoutduration} minutos`, inline: true },
-                { name: "Mensajes en 10s", value: `${timestamps.length}`, inline: true }
-            ],
-            footer: { text: "Sistema de moderación automática" },
-            timestamp: new Date()
-        }]
-    });
-
-    // Log al canal configurado
-    const logChannel = message.guild.channels.cache.get(logchannelid);
-    if (logChannel) {
-        logChannel.send({
-            embeds: [{
-                color: 0xe74c3c,
-                title: "🚨 Moderación: Spam detectado",
-                description: `${message.author.tag} fue suspendido.`,
-                fields: [
-                    { name: "Duración", value: `${timeoutduration} minutos`, inline: true },
-                    { name: "Mensajes en 10s", value: `${timestamps.length}`, inline: true }
-                ],
-                timestamp: new Date()
-            }]
-        });
-    }
-} catch (err) {
-    console.error("❌ Error aplicando timeout:", err);
+   if (!spamTracker.has(key)) {
+    spamTracker.set(key, { timestamps: [], suspension: null });
 }
 
+const data = spamTracker.get(key);
+const timestamps = data.timestamps.filter(ts => now - ts < 10000); // últimos 10s
+timestamps.push(now);
+data.timestamps = timestamps;
+spamTracker.set(key, data);
 
-            spamTracker.set(key, []); // reset
+// Contar palabras del mensaje
+const wordCount = message.content.trim().split(/\s+/).length;
+
+const res = await pool.query(
+    `SELECT logChannelId, spamThreshold, timeoutDuration FROM moderation_settings WHERE guildId = $1`,
+    [message.guild.id]
+);
+
+if (res.rowCount > 0) {
+    const { logchannelid, spamthreshold, timeoutduration } = res.rows[0];
+
+    // --- Detector 1: spam por frecuencia (tu lógica original) ---
+    if (timestamps.length >= spamthreshold) {
+        try {
+            await message.member.timeout(timeoutduration * 60 * 1000, "Spam detectado (frecuencia)");
+            // ... tus embeds y logs originales ...
+            spamTracker.set(key, { timestamps: [], suspension: data.suspension });
+        } catch (err) {
+            console.error("❌ Error aplicando timeout:", err);
         }
     }
+
+    // --- Detector 2: spam por longitud (>30 palabras) ---
+    if (wordCount > 30) {
+        try {
+            // Suspensión progresiva
+            let suspensionMs;
+            if (data.suspension) {
+                suspensionMs = data.suspension * 2;
+            } else {
+                suspensionMs = timeoutduration * 60 * 1000; // primera suspensión
+            }
+
+            await message.member.timeout(suspensionMs, "Spam detectado (mensaje largo)");
+
+            await message.channel.send({
+                embeds: [{
+                    color: 0xf39c12,
+                    title: "⏳ Usuario suspendido",
+                    description: `${message.author} fue suspendido automáticamente por **mensaje demasiado largo**.`,
+                    fields: [
+                        { name: "Duración", value: `${Math.floor(suspensionMs / 1000)} segundos`, inline: true },
+                        { name: "Palabras en mensaje", value: `${wordCount}`, inline: true }
+                    ],
+                    footer: { text: "Sistema de moderación automática" },
+                    timestamp: new Date()
+                }]
+            });
+
+            const logChannel = message.guild.channels.cache.get(logchannelid);
+            if (logChannel) {
+                logChannel.send({
+                    embeds: [{
+                        color: 0xe74c3c,
+                        title: "🚨 Moderación: Mensaje largo detectado",
+                        description: `${message.author.tag} fue suspendido.`,
+                        fields: [
+                            { name: "Duración", value: `${Math.floor(suspensionMs / 1000)} segundos`, inline: true },
+                            { name: "Palabras en mensaje", value: `${wordCount}`, inline: true }
+                        ],
+                        timestamp: new Date()
+                    }]
+                });
+            }
+
+            // Guardar suspensión progresiva
+            spamTracker.set(key, { timestamps: data.timestamps, suspension: suspensionMs });
+
+        } catch (err) {
+            console.error("❌ Error aplicando timeout:", err);
+        }
+    }
+}
 
     if (!message.content.startsWith(prefix)) return;
 
