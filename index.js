@@ -13,6 +13,12 @@ const pool = new Pool({
     ssl: { rejectUnauthorized: false }
 });
 
+
+pool.connect();
+
+// exporta el pool para usarlo en otros archivos
+module.exports = pool;
+
 // Crear tablas si no existen
 (async () => {
     try {
