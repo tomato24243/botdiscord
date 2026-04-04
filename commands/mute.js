@@ -2,9 +2,12 @@ const { EmbedBuilder, PermissionsBitField } = require('discord.js');
 const { getFunnyComment } = require('./util/funnycoments');
 const pool = require("../index"); // tu conexión a Postgres
 
-function parseDuration(input) {
+function parseDuration(duration) {
+    if(!duration || typeof duration !== string){
+        throw new Error('Duración invalida o no especificada');
+    }
     const match = input.match(/^(\d+)([smhd])$/);
-    if (!match) return null;
+    if (!match) throw new Error('Formato de duración inválido');
 
     const value = parseInt(match[1], 10);
     const unit = match[2];

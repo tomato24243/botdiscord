@@ -1,15 +1,15 @@
 // Centralizamos frases graciosas para reusarlas en varios comandos
 const funnyComments = {
-    ban: [
-        (author, target) => `😂 @${target}, ${author} intentó banearte... pero su martillo era de plástico.`,
-        (author, target) => `🤣 @${target}, ${author} quiso banearte, pero falló más que un mago sin maná.`,
-        (author, target) => `🤭 @${target}, ${author} trató de banearte... ¡pero no tiene poderes!`,
-    ],
-    mute: [
-        (author, target) => `😅 @${target}, ${author} intentó silenciarte... pero su micrófono estaba apagado.`,
-        (author, target) => `🎤 @${target}, ${author} quiso mutearte, pero terminó muteándose a sí mismo.`,
-        (author, target) => `🙃 @${target}, ${author} trató de callarte... pero solo logró hacer ruido.`,
-    ]
+ban: [
+    (author, target) => `<:bonk:1490094960819573001> <@${target.id}>, <@${author.id}> intentó banearte... pero su martillo era de plástico.`,
+    (author, target) => `<:bonk:1490094960819573001> <@${target.id}>, <@${author.id}> quiso banearte, pero falló más que un mago sin maná.`,
+    (author, target) => `<:bonk:1490094960819573001> <@${target.id}>, <@${author.id}> trató de banearte... ¡pero no tiene poderes!`,
+],
+mute: [
+    (author, target) => `<:bonk:1490094960819573001> <@${target.id}>, <@${author.id}> intentó silenciarte... pero su micrófono estaba apagado.`,
+    (author, target) => `<:bonk:1490094960819573001> <@${target.id}>, <@${author.id}> quiso mutearte, pero terminó muteándose a sí mismo.`,
+    (author, target) => `<:bonk:1490094960819573001> <@${target.id}>, <@${author.id}> trató de callarte... pero solo logró hacer ruido.`,
+]
 };
 
 function getFunnyComment(type, author, target) {
