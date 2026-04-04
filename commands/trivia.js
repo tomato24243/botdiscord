@@ -120,8 +120,22 @@ module.exports = {
     let streak = streakRes.rows.length > 0 ? streakRes.rows[0].current_streak : 0;
 
     // Determinar nivel
+    // Determinar nivel
     const level = getDifficulty(streak);
-    let q = level.set[Math.floor(Math.random() * level.set.length)];
+
+    // Si el usuario eligió categoría, usar ese set; si no, usar el global
+    let questionPool;
+    if (chosenCategory) {
+      questionPool = categories[chosenCategory][
+        level.category.toLowerCase().includes("medio") 
+          ? (level.category === "Medio Difícil" ? "mediumHard" : "medium") 
+          : (level.category === "Fácil" ? "easy" : "hard")
+      ];
+    } else {
+      questionPool = level.set;
+    }
+
+    let q = questionPool[Math.floor(Math.random() * questionPool.length)];
     q = shuffleOptions(q);
 
     // Tiempo dinámico según tipo de pregunta
@@ -146,7 +160,7 @@ module.exports = {
 
     const embed = new EmbedBuilder()
       .setTitle(`🎲 Trivia - ${q.Category}`)
-      .setDescription(`${q.Question}\n\n🔥 Racha actual: ${streak}\n⚡ Nivel: ${level.Category}\n⏳ Tiempo límite: ${timeLimit/1000} segundos\n\n${level.bar}`)
+      .setDescription(`${q.Question}\n\n🔥 Racha actual: ${streak}\n⚡ Nivel: ${level.category}\n⏳ Tiempo límite: ${timeLimit/1000} segundos\n\n${level.bar}`)
       .setColor(level.color);
 
     const row = new ActionRowBuilder().addComponents(
