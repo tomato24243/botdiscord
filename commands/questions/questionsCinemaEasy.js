@@ -1,98 +1,98 @@
 module.exports = [
   {
-    category: "Cine",
-    question: "¿Quién interpretó a Jack en Titanic?",
-    options: ["Leonardo DiCaprio", "Brad Pitt", "Tom Cruise", "Johnny Depp"],
-    answer: 0
+    Category: "Cine",
+    Question: "¿Quién interpretó a Jack en Titanic?",
+    Options: ["Leonardo DiCaprio", "Brad Pitt", "Tom Cruise", "Johnny Depp"],
+    Answer: 0
   },
   {
-    category: "Cine",
-    question: "¿Qué personaje dice la frase 'Yo soy tu padre'?",
-    options: ["Darth Vader", "Luke Skywalker", "Obi-Wan Kenobi", "Yoda"],
-    answer: 0
+    Category: "Cine",
+    Question: "¿Qué personaje dice la frase 'Yo soy tu padre'?",
+    Options: ["Darth Vader", "Luke Skywalker", "Obi-Wan Kenobi", "Yoda"],
+    Answer: 0
   },
   {
-    category: "Cine",
-    question: "¿Qué película animada tiene a Woody y Buzz Lightyear?",
-    options: ["Toy Story", "Shrek", "Frozen", "Cars"],
-    answer: 0
+    Category: "Cine",
+    Question: "¿Qué película animada tiene a Woody y Buzz Lightyear?",
+    Options: ["Toy Story", "Shrek", "Frozen", "Cars"],
+    Answer: 0
   },
   {
-    category: "Cine",
-    question: "¿Quién dirigió Jurassic Park?",
-    options: ["Steven Spielberg", "James Cameron", "George Lucas", "Tim Burton"],
-    answer: 0
+    Category: "Cine",
+    Question: "¿Quién dirigió Jurassic Park?",
+    Options: ["Steven Spielberg", "James Cameron", "George Lucas", "Tim Burton"],
+    Answer: 0
   },
   {
-    category: "Cine",
-    question: "¿Qué superhéroe es conocido como 'El Caballero de la Noche'?",
-    options: ["Batman", "Superman", "Iron Man", "Spider-Man"],
-    answer: 0
+    Category: "Cine",
+    Question: "¿Qué superhéroe es conocido como 'El Caballero de la Noche'?",
+    Options: ["Batman", "Superman", "Iron Man", "Spider-Man"],
+    Answer: 0
   },
   {
-    category: "Cine",
-    question: "¿En qué película aparece el personaje Elsa?",
-    options: ["Frozen", "Moana", "Encanto", "Rapunzel"],
-    answer: 0
+    Category: "Cine",
+    Question: "¿En qué película aparece el personaje Elsa?",
+    Options: ["Frozen", "Moana", "Encanto", "Rapunzel"],
+    Answer: 0
   },
   {
-    category: "Cine",
-    question: "¿Qué princesa de Disney pierde un zapato de cristal?",
-    options: ["Cenicienta", "Ariel", "Blancanieves", "Aurora"],
-    answer: 0
+    Category: "Cine",
+    Question: "¿Qué princesa de Disney pierde un zapato de cristal?",
+    Options: ["Cenicienta", "Ariel", "Blancanieves", "Aurora"],
+    Answer: 0
   },
   {
-    category: "Cine",
-    question: "¿Quién es el mejor amigo de Simba en El Rey León?",
-    options: ["Nala", "Timon y Pumba", "Scar", "Mufasa"],
-    answer: 1
+    Category: "Cine",
+    Question: "¿Quién es el mejor amigo de Simba en El Rey León?",
+    Options: ["Nala", "Timon y Pumba", "Scar", "Mufasa"],
+    Answer: 1
   },
   {
-    category: "Cine",
-    question: "¿Qué actor interpreta a Jack Sparrow?",
-    options: ["Johnny Depp", "Orlando Bloom", "Hugh Jackman", "Robert Downey Jr."],
-    answer: 0
+    Category: "Cine",
+    Question: "¿Qué actor interpreta a Jack Sparrow?",
+    Options: ["Johnny Depp", "Orlando Bloom", "Hugh Jackman", "Robert Downey Jr."],
+    Answer: 0
   },
   {
-    category: "Cine",
-    question: "¿Qué animal es Dumbo?",
-    options: ["Elefante", "Ratón", "Perro", "Caballo"],
-    answer: 0
+    Category: "Cine",
+    Question: "¿Qué animal es Dumbo?",
+    Options: ["Elefante", "Ratón", "Perro", "Caballo"],
+    Answer: 0
   },
   {
-    category: "Cine",
-    question: "¿Qué película popularizó la canción 'Let It Go'?",
-    options: ["Frozen", "Moana", "Encanto", "La Bella y la Bestia"],
-    answer: 0
+    Category: "Cine",
+    Question: "¿Qué película popularizó la canción 'Let It Go'?",
+    Options: ["Frozen", "Moana", "Encanto", "La Bella y la Bestia"],
+    Answer: 0
   },
   {
-    category: "Cine",
-    question: "¿Qué película cuenta la historia de un genio azul?",
-    options: ["Aladdín", "Hércules", "Peter Pan", "Pocahontas"],
-    answer: 0
+    Category: "Cine",
+    Question: "¿Qué película cuenta la historia de un genio azul?",
+    Options: ["Aladdín", "Hércules", "Peter Pan", "Pocahontas"],
+    Answer: 0
   },
   {
-    category: "Cine",
-    question: "¿Qué personaje de Marvel usa un martillo llamado Mjolnir?",
-    options: ["Thor", "Hulk", "Capitán América", "Iron Man"],
-    answer: 0
+    Category: "Cine",
+    Question: "¿Qué personaje de Marvel usa un martillo llamado Mjolnir?",
+    Options: ["Thor", "Hulk", "Capitán América", "Iron Man"],
+    Answer: 0
   },
   {
-    category: "Cine",
-    question: "¿Qué película tiene dinosaurios clonados en un parque?",
-    options: ["Jurassic Park", "King Kong", "Ice Age", "Godzilla"],
-    answer: 0
+    Category: "Cine",
+    Question: "¿Qué película tiene dinosaurios clonados en un parque?",
+    Options: ["Jurassic Park", "King Kong", "Ice Age", "Godzilla"],
+    Answer: 0
   },
   {
-    category: "Cine",
-    question: "¿Qué película animada tiene a una familia de superhéroes?",
-    options: ["Los Increíbles", "Shrek", "Zootopia", "Up"],
-    answer: 0
+    Category: "Cine",
+    Question: "¿Qué película animada tiene a una familia de superhéroes?",
+    Options: ["Los Increíbles", "Shrek", "Zootopia", "Up"],
+    Answer: 0
   },
   {
-    category: "Cine",
-    question: "¿Qué personaje de Disney vive bajo el mar?",
-    options: ["Ariel", "Rapunzel", "Mulan", "Elsa"],
-    answer: 0
+    Category: "Cine",
+    Question: "¿Qué personaje de Disney vive bajo el mar?",
+    Options: ["Ariel", "Rapunzel", "Mulan", "Elsa"],
+    Answer: 0
   }
 ];
