@@ -461,6 +461,8 @@ if (commandName === "unreg") {
 const prefix = "?";
 
 const trivia = require("./commands/trivia");
+const ban = require("./commands/ban");
+const mute = require("./commands/mute");
 //Tracker global
 const spamTracker = new Map();
 
@@ -610,6 +612,10 @@ client.on(Events.MessageCreate, async (message) => {
     }
 
      if (command === "trivia") return trivia.execute(message, args);
+     
+     if (command === "mute") return mute.execute(message, args);
+
+     if (command === "ban") return ban.execute(message, args);
 
     if (command === "ranking") {
     const res = await pool.query(
