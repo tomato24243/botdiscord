@@ -86,6 +86,13 @@ const categoryAliases = {
   log: "logic"
 };
 
+const difficultyAliases = {
+  f: "fácil",
+  m: "medio",
+  md: "medio difícil",
+  d: "difícil"
+};
+
 // Generar arrays dinámicamente
 const EasyQuestions = Object.values(categories).flatMap(cat => cat.easy);
 const MediumQuestions = Object.values(categories).flatMap(cat => cat.medium);
@@ -150,6 +157,10 @@ module.exports = {
 
        if (chosenCategory && categoryAliases[chosenCategory]) {
           chosenCategory = categoryAliases[chosenCategory];
+        }
+
+          if (chosenDifficulty && difficultyAliases[chosenDifficulty]) {
+          chosenDifficulty = difficultyAliases[chosenDifficulty];
         }
 
 
