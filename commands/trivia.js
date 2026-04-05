@@ -57,6 +57,18 @@ const categories = {
     medium: require("./questions/questionsMusicMedium"),
     mediumHard: require("./questions/questionsMusicMediumHard"),
     hard: require("./questions/questionsMusicHard"),
+  },
+  Laws: {
+    easy: require("./questions/questionsLawsEasy"),
+    medium: require("./questions/questionsLawsMedium"),
+    mediumHard: require("./questions/questionsLawsMediumHard"),
+    hard: require("./questions/questionsLawsHard"),
+  },
+  Gast: {
+    easy: require("./questions/questionsGastronomyEasy"),
+    medium: require("./questions/questionsGastronomyMedium"),
+    mediumHard: require("./questions/questionsGastronomyMediumHard"),
+    hard: require("./questions/questionsGastronomyHard"), 
   }
 };
 
@@ -85,7 +97,7 @@ function shuffleOptions(Question) {
 const activeTriviaUsers = new Set();
 
 // Definir niveles de dificultad con barras multicolor
-const difficultyLevels = [
+const difficultyLevel = [
   { min: 0, max: 14, category: "Fácil", color: 0x2ecc71, points: 1, time: 20000, set: EasyQuestions, bar: "🟩🟩🟩⬜⬜⬜⬜⬜⬜⬜" },
   { min: 15, max: 29, category: "Medio", color: 0xf1c40f, points: 1, time: 20000, set: MediumQuestions, bar: "🟨🟨🟨🟩🟩🟩⬜⬜⬜⬜" },
   { min: 30, max: 44, category: "Medio Difícil", color: 0xe67e22, points: 2, time: 15000, set: MediumHardQuestions, bar: "🟧🟧🟧🟨🟨🟨🟩🟩🟩⬜" },
@@ -93,7 +105,7 @@ const difficultyLevels = [
 ];
 
 function getDifficulty(streak) {
-  return difficultyLevels.find(level => streak >= level.min && streak <= level.max);
+  return difficultyLevel.find(level => streak >= level.min && streak <= level.max);
 }
 
 module.exports = {
@@ -101,7 +113,28 @@ module.exports = {
   description: "Pregunta de trivia aleatoria o por tema",
   async execute(message, args) {
 
-    let chosenCategory = args && args[0] ? args[0].toLowerCase() : null;
+    if (args[0] && args[0].toLowerCase() === "help") {
+      const helpEmbed = new EmbedBuilder()
+        .setTitle("📘 Ayuda - Trivia")
+        .setDescription(
+          "**Uso:** `!trivia [tema] [dificultad]`\n\n" +
+          "• **Temas disponibles:** " + Object.keys(categories).join(", ") + "\n" +
+          "• **Dificultades:** fácil, medio, medio difícil, difícil\n\n" +
+          "**Ejemplos:**\n" +
+          "`!trivia cine medio`\n" +
+          "`!trivia historia`\n" +
+          "`!trivia difícil`"
+        )
+        .setColor(0x3498db);
+
+      return message.reply({ embeds: [helpEmbed] });
+    }
+
+
+     let chosenCategory = args[0] ? args[0].toLowerCase() : null;
+     let chosenDifficulty = args[1] ? args[1].toLowerCase() : null;
+
+
     if (chosenCategory && !categories[chosenCategory]) {
       return message.reply(`⚠️ Tema no válido. Los temas disponibles son: ${Object.keys(categories).join(", ")}`);
     }
@@ -120,26 +153,44 @@ module.exports = {
     let streak = streakRes.rows.length > 0 ? streakRes.rows[0].current_streak : 0;
 
     // Determinar nivel
-    // Determinar nivel
-    const level = getDifficulty(streak);
+    const finallevelByStreak = getDifficulty(streak);
+    let finallevel = finallevelByStreak;
+
+     if (chosenDifficulty) {
+    const requestedfinallevel = difficultyLevel.find(l =>
+      l.category.toLowerCase().includes(chosenDifficulty)
+    );
+
+    if (!requestedfinallevel) {
+      return message.reply(`⚠️ Dificultad no válida. Las opciones son: ${difficultyLevel.map(l => l.category).join(", ")}`);
+    }
+
+    if (requestedfinallevel.min < finallevelByStreak.min) {
+      // No se permite bajar
+      message.reply(`⚠️ No puedes elegir una dificultad menor a tu racha actual. Se usará **${finallevelByStreak.category}**.`);
+      finallevel = finallevelByStreak;
+    } else {
+      finallevel = requestedfinallevel;
+    }
+  }
 
     // Si el usuario eligió categoría, usar ese set; si no, usar el global
-    let questionPool;
-    if (chosenCategory) {
-      questionPool = categories[chosenCategory][
-        level.category.toLowerCase().includes("medio") 
-          ? (level.category === "Medio Difícil" ? "mediumHard" : "medium") 
-          : (level.category === "Fácil" ? "easy" : "hard")
-      ];
-    } else {
-      questionPool = level.set;
-    }
+      let questionPool;
+      if (chosenCategory) {
+        questionPool = categories[chosenCategory][
+          finallevel.category.toLowerCase().includes("medio")
+            ? (finallevel.category === "Medio Difícil" ? "mediumHard" : "medium")
+            : (finallevel.category === "Fácil" ? "easy" : "hard")
+        ];
+      } else {
+        questionPool = finallevel.set;
+      }
 
     let q = questionPool[Math.floor(Math.random() * questionPool.length)];
     q = shuffleOptions(q);
 
     // Tiempo dinámico según tipo de pregunta
-    let timeLimit = level.time;
+    let timeLimit = finallevel.time;
 
       const difficultTimeOverrides = {
         math: 30000,        // Matemáticas difíciles → 30s
@@ -150,18 +201,20 @@ module.exports = {
         geography: 15000,   // Geografía difícil → 15s
         history: 12000,     // Historia difícil → 12s
         algebra: 450000,    // Álgebra difícil → 7.5 min
-        music: 10000        // Música difícil → 10s
+        music: 10000,   // Música difícil → 10s
+        gastronomía: 10000,   // Gastronomía difícil → 10s
+        leyes: 10000 // Leyes difícil → 10s
       };
 
-      if (level.Category === "Difícil" && difficultTimeOverrides[q.type.toLowerCase()]) {
+      if (finallevel.category === "Difícil" && difficultTimeOverrides[q.type.toLowerCase()]) {
         timeLimit = difficultTimeOverrides[q.type.toLowerCase()];
       }
 
 
     const embed = new EmbedBuilder()
       .setTitle(`🎲 Trivia - ${q.Category}`)
-      .setDescription(`${q.Question}\n\n🔥 Racha actual: ${streak}\n⚡ Nivel: ${level.category}\n⏳ Tiempo límite: ${timeLimit/1000} segundos\n\n${level.bar}`)
-      .setColor(level.color);
+      .setDescription(`${q.Question}\n\n🔥 Racha actual: ${streak}\n⚡ Nivel: ${finallevel.category}\n⏳ Tiempo límite: ${timeLimit/1000} segundos\n\n${finallevel.bar}`)
+      .setColor(finallevel.color);
 
     const row = new ActionRowBuilder().addComponents(
       q.Options.map((opt, i) =>
@@ -207,7 +260,7 @@ module.exports = {
             points = trivia_scores.points + $3,
             current_streak = trivia_scores.current_streak + 1,
             max_streak = GREATEST(trivia_scores.max_streak, trivia_scores.current_streak + 1)
-        `, [message.guild.id, interaction.user.id, level.points]);
+        `, [message.guild.id, interaction.user.id, finallevel.points]);
 
         const res = await pool.query(
           "SELECT points, current_streak FROM trivia_scores WHERE guild_id = $1 AND user_id = $2",
@@ -215,7 +268,7 @@ module.exports = {
         );
         const { points, current_streak } = res.rows[0];
 
-        await interaction.reply(`✅ ¡Correcto ${interaction.user.username}! Ganaste **${level.points} puntos**. Ahora tienes **${points} puntos** (racha: ${current_streak})`);
+        await interaction.reply(`✅ ¡Correcto ${interaction.user.username}! Ganaste **${finallevel.points} puntos**. Ahora tienes **${points} puntos** (racha: ${current_streak})`);
 
       } else {
         // ❌ Incorrecto → restar puntos y reiniciar racha
