@@ -58,18 +58,32 @@ const categories = {
     mediumHard: require("./questions/questionsMusicMediumHard"),
     hard: require("./questions/questionsMusicHard"),
   },
-  Laws: {
+  laws: {
     easy: require("./questions/questionsLawsEasy"),
     medium: require("./questions/questionsLawsMedium"),
     mediumHard: require("./questions/questionsLawsMediumHard"),
     hard: require("./questions/questionsLawsHard"),
   },
-  Gast: {
+  gast: {
     easy: require("./questions/questionsGastronomyEasy"),
     medium: require("./questions/questionsGastronomyMedium"),
     mediumHard: require("./questions/questionsGastronomyMediumHard"),
     hard: require("./questions/questionsGastronomyHard"), 
   }
+};
+
+const categoryAliases = {
+  gas: "gast",
+  gam: "gaming",
+  mat: "math",
+  law: "laws",
+  mus: "music",
+  cin: "cinema",
+  ast: "astronomy",
+  spo: "sports",
+  geo: "geography",
+  his: "history",
+  log: "logic"
 };
 
 // Generar arrays dinámicamente
@@ -121,9 +135,9 @@ module.exports = {
           "• **Temas disponibles:** " + Object.keys(categories).join(", ") + "\n" +
           "• **Dificultades:** fácil, medio, medio difícil, difícil\n\n" +
           "**Ejemplos:**\n" +
-          "`!trivia cine medio`\n" +
-          "`!trivia historia`\n" +
-          "`!trivia difícil`"
+          "`?trivia cine medio`\n" +
+          "`?trivia historia`\n" +
+          "`?trivia difícil`"
         )
         .setColor(0x3498db);
 
@@ -133,6 +147,10 @@ module.exports = {
 
      let chosenCategory = args[0] ? args[0].toLowerCase() : null;
      let chosenDifficulty = args[1] ? args[1].toLowerCase() : null;
+
+       if (chosenCategory && categoryAliases[chosenCategory]) {
+          chosenCategory = categoryAliases[chosenCategory];
+        }
 
 
     if (chosenCategory && !categories[chosenCategory]) {
