@@ -494,16 +494,40 @@ client.on(Events.MessageCreate, async (message) => {
     if (res.rowCount > 0) {
         const { logchannelid, spamthreshold, timeoutduration } = res.rows[0];
 
-        // --- Detector 1: spam por frecuencia (tu lógica original) ---
-        if (data.timestamps.length >= spamthreshold) {
+                if (data.timestamps.length >= spamthreshold) {
             try {
                 await message.member.timeout(timeoutduration * 60 * 1000, "Spam detectado (frecuencia)");
-                // ... tus embeds y logs originales ...
+
+                // Embed serio al canal de moderación
+                const logChannel = message.guild.channels.cache.get(logchannelid);
+                if (logChannel) {
+                    logChannel.send({
+                        embeds: [{
+                            color: 0xe74c3c,
+                            title: "🚨 Moderación: Spam detectado (frecuencia)",
+                            description: `${message.author.tag} fue suspendido.`,
+                            fields: [
+                                { name: "Duración", value: `${timeoutduration} minutos`, inline: true },
+                                { name: "Mensajes en 10s", value: `${data.timestamps.length}`, inline: true }
+                            ],
+                            timestamp: new Date()
+                        }]
+                    });
+                }
+
+                // Mensaje gracioso en el canal donde ocurrió
+                await message.channel.send({
+                    content: `<:yunobotbonk:1492726734414680084> ¡Bonk! ${message.author} fue muteado por spamear como si no hubiera mañana.`
+                });
+
+                // Resetear tracker
                 spamTracker.set(key, { timestamps: [], suspension: data.suspension, longMsgCount: 0 });
             } catch (err) {
                 console.error("❌ Error aplicando timeout:", err);
             }
         }
+
+
 
         // --- Detector 2: spam por longitud (≥50 palabras, mínimo 3 mensajes en 10s) ---
         if (wordCount >= 50) {
