@@ -494,8 +494,25 @@ client.on(Events.MessageCreate, async (message) => {
     if (res.rowCount > 0) {
         const { logchannelid, spamthreshold, timeoutduration } = res.rows[0];
 
+        
+
                 if (data.timestamps.length >= spamthreshold) {
             try {
+                if (!message.member) {
+                            console.error("No se pudo obtener el miembro del mensaje.");
+                            return;
+                        }
+
+                        if (!message.guild.members.me.permissions.has("ModerateMembers")) {
+                            console.error("El bot no tiene permiso de Moderar Miembros.");
+                            return;
+                        }
+
+                        if (message.member.roles.highest.position >= message.guild.members.me.roles.highest.position) {
+                            console.error("El bot no puede mutear a este usuario porque su rol es igual o superior.");
+                            return;
+                        }
+
                 await message.member.timeout(timeoutduration * 60 * 1000, "Spam detectado (frecuencia)");
 
                 // Embed serio al canal de moderación
