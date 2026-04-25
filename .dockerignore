@@ -1,0 +1,22 @@
+# Dependencias
+node_modules
+
+# Archivos de entorno
+.env
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Ignorar base de datos local
+botdata.db
+
+# Ignorar archivo de BFG
+bfg
+bfg.jar
+
